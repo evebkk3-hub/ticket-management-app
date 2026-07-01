@@ -1,0 +1,45 @@
+@startuml
+title After Sales Service - Activity Diagram
+
+start
+:Customer submits service request;
+:Create ticket in CRM;
+:Check customer and product information;
+
+if (Warranty valid?) then (yes)
+  :Assign technician;
+else (no)
+  :Prepare service quotation;
+  if (Customer approves?) then (yes)
+    :Assign technician;
+  else (no)
+    :Close ticket as cancelled;
+    stop
+  endif
+endif
+
+:Diagnose product issue;
+
+if (Need spare part?) then (yes)
+  :Check inventory;
+  if (Part available?) then (yes)
+    :Reserve spare part;
+  else (no)
+    :Order spare part;
+    :Notify customer of waiting time;
+  endif
+endif
+
+:Repair or replace product;
+:Test product;
+
+if (Test passed?) then (yes)
+  :Return product to customer;
+  :Close ticket;
+  :Send satisfaction survey;
+else (no)
+  :Escalate to senior technician;
+endif
+
+stop
+@enduml

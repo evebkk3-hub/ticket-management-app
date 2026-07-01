@@ -1,0 +1,27 @@
+@startuml
+title Ticket Management System - Ticket Status Lifecycle
+
+[*] --> Draft
+Draft --> New : Submit
+New --> Assigned : Auto/manual assignment
+Assigned --> InProgress : Agent starts work
+InProgress --> PendingRequester : Need requester info
+InProgress --> PendingVendor : Need vendor support
+InProgress --> Escalated : Need specialist
+
+PendingRequester --> InProgress : Requester replies
+PendingVendor --> InProgress : Vendor replies
+Escalated --> InProgress : Specialist accepts
+
+InProgress --> Resolved : Solution provided
+Resolved --> Closed : Requester accepts
+Resolved --> Reopened : Requester rejects
+
+Reopened --> InProgress : Reassign owner
+Closed --> [*]
+
+New --> Cancelled : Duplicate or invalid
+Assigned --> Cancelled : Cancel request
+Cancelled --> [*]
+
+@enduml

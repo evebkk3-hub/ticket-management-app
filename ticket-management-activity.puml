@@ -1,0 +1,45 @@
+@startuml
+title Ticket Management System - Workflow Activity
+
+start
+:User creates ticket;
+:Validate required information;
+
+if (Information complete?) then (yes)
+  :Generate ticket ID;
+else (no)
+  :Request missing information;
+  :User updates ticket;
+  :Generate ticket ID;
+endif
+
+:Classify category;
+:Set priority and SLA;
+:Assign owner or support group;
+:Notify assignee and requester;
+
+if (Can resolve at first level?) then (yes)
+  :Provide solution;
+else (no)
+  :Escalate to specialist team;
+  :Investigate root cause;
+  if (Need vendor or external support?) then (yes)
+    :Open external support request;
+    :Wait for vendor response;
+  endif
+  :Apply fix or workaround;
+endif
+
+:Update ticket resolution;
+:Ask requester to confirm;
+
+if (Requester accepts?) then (yes)
+  :Close ticket;
+  :Send satisfaction survey;
+else (no)
+  :Reopen ticket;
+  :Escalate to supervisor;
+endif
+
+stop
+@enduml

@@ -1,0 +1,55 @@
+@startuml
+title Ticket Management System - Use Case Diagram
+
+left to right direction
+
+actor Requester
+actor "Support Agent" as Agent
+actor "Specialist Team" as Specialist
+actor Supervisor
+actor Manager
+actor "External Vendor" as Vendor
+
+rectangle "Ticket Management System" {
+  usecase "Create Ticket" as UC1
+  usecase "Track Ticket" as UC2
+  usecase "Add Comment" as UC3
+  usecase "Classify Ticket" as UC4
+  usecase "Set Priority and SLA" as UC5
+  usecase "Assign Ticket" as UC6
+  usecase "Resolve Ticket" as UC7
+  usecase "Escalate Ticket" as UC8
+  usecase "Reopen Ticket" as UC9
+  usecase "Close Ticket" as UC10
+  usecase "Manage Knowledge Base" as UC11
+  usecase "View SLA Dashboard" as UC12
+}
+
+Requester --> UC1
+Requester --> UC2
+Requester --> UC3
+Requester --> UC9
+
+Agent --> UC4
+Agent --> UC5
+Agent --> UC6
+Agent --> UC7
+Agent --> UC10
+Agent --> UC11
+
+Specialist --> UC7
+Specialist --> UC8
+Vendor --> UC8
+
+Supervisor --> UC6
+Supervisor --> UC8
+Supervisor --> UC12
+Manager --> UC12
+
+UC6 ..> UC5 : includes
+UC7 ..> UC11 : includes
+UC8 ..> UC7 : extends
+UC10 ..> UC7 : includes
+UC9 ..> UC2 : extends
+
+@enduml

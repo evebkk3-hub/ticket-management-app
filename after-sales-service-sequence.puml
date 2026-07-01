@@ -1,0 +1,40 @@
+@startuml
+title After Sales Service - Sequence Diagram
+
+actor Customer as C
+participant "Service Portal" as Portal
+participant "CRM / Ticket System" as CRM
+participant "Service Agent" as Agent
+participant "Technician" as Tech
+participant "Inventory" as Stock
+
+C -> Portal: Submit service request
+Portal -> CRM: Create ticket
+CRM -> Agent: Notify new ticket
+
+Agent -> CRM: Review warranty and product history
+CRM --> Agent: Customer, product, warranty data
+
+alt Warranty valid
+  Agent -> Tech: Assign repair job
+  Tech -> CRM: Diagnose issue
+
+  alt Spare part required
+    Tech -> Stock: Request spare part
+    Stock --> Tech: Confirm availability
+  else No spare part required
+    Tech -> Tech: Repair or configure product
+  end
+
+  Tech -> CRM: Update service result
+  CRM -> C: Send repair status
+else Warranty expired
+  Agent -> C: Send quotation
+  C --> Agent: Approve quotation
+  Agent -> Tech: Assign paid service job
+end
+
+Agent -> CRM: Close ticket
+CRM -> C: Send satisfaction survey
+
+@enduml

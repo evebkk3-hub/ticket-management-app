@@ -1,0 +1,47 @@
+@startuml
+title Ticket Management System - Sequence Diagram
+
+actor Requester
+participant "Ticket Portal" as Portal
+participant "Ticket Service" as Ticket
+participant "SLA Engine" as SLA
+participant "Notification Service" as Notify
+participant "Support Agent" as Agent
+participant "Specialist Team" as Specialist
+participant "Knowledge Base" as KB
+
+Requester -> Portal: Create ticket
+Portal -> Ticket: Submit ticket data
+Ticket -> Ticket: Validate request
+Ticket -> SLA: Calculate priority and due date
+SLA --> Ticket: SLA target
+Ticket -> Notify: Send ticket created message
+Notify --> Requester: Ticket ID and status
+
+Ticket -> Agent: Assign ticket
+Agent -> Ticket: Review ticket details
+Agent -> KB: Search known solution
+KB --> Agent: Suggested article or workaround
+
+alt First level can resolve
+  Agent -> Ticket: Add resolution note
+  Ticket -> Notify: Ask requester to confirm
+  Notify --> Requester: Resolution confirmation request
+else Escalation required
+  Agent -> Specialist: Escalate ticket
+  Specialist -> Ticket: Investigate and update root cause
+  Specialist -> Ticket: Add final resolution
+  Ticket -> Notify: Ask requester to confirm
+end
+
+alt Requester accepts
+  Requester -> Portal: Confirm resolved
+  Portal -> Ticket: Close ticket
+  Ticket -> Notify: Send closure and survey
+else Requester rejects
+  Requester -> Portal: Reopen ticket
+  Portal -> Ticket: Change status to Reopened
+  Ticket -> Agent: Notify owner
+end
+
+@enduml

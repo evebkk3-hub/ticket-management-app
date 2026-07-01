@@ -1,0 +1,55 @@
+@startuml
+title Ticket Management System - Flow Chart
+
+skinparam activity {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+  DiamondBackgroundColor #E0F2FE
+  DiamondBorderColor #0369A1
+  StartColor #16A34A
+  EndColor #DC2626
+}
+skinparam ArrowColor #475569
+
+start
+:Create ticket;
+:Validate ticket information;
+
+if (Information complete?) then (yes)
+  :Generate ticket ID;
+else (no)
+  :Request missing information;
+  :Update ticket details;
+  :Generate ticket ID;
+endif
+
+:Classify category;
+:Set priority and SLA;
+:Assign support owner;
+:Notify requester and assignee;
+
+if (First level can resolve?) then (yes)
+  :Add solution;
+else (no)
+  :Escalate to specialist;
+  :Investigate root cause;
+  if (Vendor support needed?) then (yes)
+    :Open vendor request;
+    :Receive vendor response;
+  endif
+  :Apply fix or workaround;
+endif
+
+:Update resolution;
+:Ask requester to confirm;
+
+if (Requester accepts?) then (yes)
+  :Close ticket;
+  :Send satisfaction survey;
+else (no)
+  :Reopen ticket;
+  :Escalate to supervisor;
+endif
+
+stop
+@enduml

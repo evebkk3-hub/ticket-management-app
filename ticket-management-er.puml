@@ -1,0 +1,171 @@
+@startuml
+title Ticket Management System - ER Diagram
+
+hide circle
+skinparam linetype ortho
+skinparam entity {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+
+entity User {
+  * user_id : int <<PK>>
+  --
+  full_name : varchar
+  email : varchar
+  role : varchar
+  team_id : int <<FK>>
+}
+
+entity Team {
+  * team_id : int <<PK>>
+  --
+  team_name : varchar
+  team_type : varchar
+}
+
+entity Ticket {
+  * ticket_id : int <<PK>>
+  --
+  requester_id : int <<FK>>
+  category_id : int <<FK>>
+  priority_id : int <<FK>>
+  status_id : int <<FK>>
+  subject : varchar
+  description : text
+  created_at : datetime
+  due_at : datetime
+  closed_at : datetime
+}
+
+entity Category {
+  * category_id : int <<PK>>
+  --
+  category_name : varchar
+  parent_category_id : int <<FK>>
+}
+
+entity Priority {
+  * priority_id : int <<PK>>
+  --
+  priority_name : varchar
+  severity_level : int
+}
+
+entity SLA {
+  * sla_id : int <<PK>>
+  --
+  category_id : int <<FK>>
+  priority_id : int <<FK>>
+  response_minutes : int
+  resolve_minutes : int
+}
+
+entity TicketStatus {
+  * status_id : int <<PK>>
+  --
+  status_name : varchar
+}
+
+entity TicketAssignment {
+  * assignment_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  assignee_id : int <<FK>>
+  team_id : int <<FK>>
+  assigned_at : datetime
+  unassigned_at : datetime
+}
+
+entity TicketComment {
+  * comment_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  author_id : int <<FK>>
+  comment_text : text
+  is_internal : boolean
+  created_at : datetime
+}
+
+entity Attachment {
+  * attachment_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  uploaded_by : int <<FK>>
+  file_name : varchar
+  file_url : varchar
+  uploaded_at : datetime
+}
+
+entity StatusHistory {
+  * history_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  old_status_id : int <<FK>>
+  new_status_id : int <<FK>>
+  changed_by : int <<FK>>
+  changed_at : datetime
+}
+
+entity KnowledgeArticle {
+  * article_id : int <<PK>>
+  --
+  category_id : int <<FK>>
+  author_id : int <<FK>>
+  title : varchar
+  content : text
+  published_at : datetime
+}
+
+entity VendorEscalation {
+  * escalation_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  vendor_name : varchar
+  contact_email : varchar
+  escalated_at : datetime
+  resolved_at : datetime
+}
+
+entity SatisfactionSurvey {
+  * survey_id : int <<PK>>
+  --
+  ticket_id : int <<FK>>
+  requester_id : int <<FK>>
+  rating : int
+  feedback : text
+  submitted_at : datetime
+}
+
+Team ||--o{ User : has
+User ||--o{ Ticket : creates
+Category ||--o{ Ticket : classifies
+Priority ||--o{ Ticket : sets
+TicketStatus ||--o{ Ticket : current
+Category ||--o{ Category : parent
+Category ||--o{ SLA : defines
+Priority ||--o{ SLA : defines
+
+Ticket ||--o{ TicketAssignment : has
+User ||--o{ TicketAssignment : assigned_to
+Team ||--o{ TicketAssignment : owns
+
+Ticket ||--o{ TicketComment : contains
+User ||--o{ TicketComment : writes
+
+Ticket ||--o{ Attachment : includes
+User ||--o{ Attachment : uploads
+
+Ticket ||--o{ StatusHistory : tracks
+TicketStatus ||--o{ StatusHistory : old_status
+TicketStatus ||--o{ StatusHistory : new_status
+User ||--o{ StatusHistory : changes
+
+Category ||--o{ KnowledgeArticle : groups
+User ||--o{ KnowledgeArticle : authors
+
+Ticket ||--o{ VendorEscalation : escalates
+Ticket ||--o| SatisfactionSurvey : receives
+User ||--o{ SatisfactionSurvey : submits
+
+@enduml

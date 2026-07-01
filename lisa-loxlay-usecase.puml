@@ -1,0 +1,50 @@
+@startuml
+title LISA LOXLAY - Use Case Diagram
+
+left to right direction
+
+actor "Customer / Branch User" as Customer
+actor "Service Desk" as Desk
+actor "Field Engineer" as Engineer
+actor "Warehouse Officer" as Warehouse
+actor "Supervisor" as Supervisor
+actor "Management" as Management
+
+rectangle "LISA LOXLAY Service System" {
+  usecase "Submit Ticket" as UC1
+  usecase "Track Ticket Status" as UC2
+  usecase "Classify Priority" as UC3
+  usecase "Validate Contract" as UC4
+  usecase "Assign Engineer" as UC5
+  usecase "Record Diagnosis" as UC6
+  usecase "Reserve Spare Part" as UC7
+  usecase "Upload Service Report" as UC8
+  usecase "Close Ticket" as UC9
+  usecase "Monitor SLA" as UC10
+  usecase "View Service Dashboard" as UC11
+}
+
+Customer --> UC1
+Customer --> UC2
+
+Desk --> UC3
+Desk --> UC4
+Desk --> UC5
+Desk --> UC9
+
+Engineer --> UC6
+Engineer --> UC8
+Engineer --> UC7
+
+Warehouse --> UC7
+Supervisor --> UC10
+Supervisor --> UC9
+Management --> UC11
+
+UC5 ..> UC4 : includes
+UC5 ..> UC10 : includes
+UC7 ..> UC6 : extends
+UC9 ..> UC8 : includes
+UC11 ..> UC10 : includes
+
+@enduml

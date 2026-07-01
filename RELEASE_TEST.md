@@ -1,0 +1,134 @@
+# Release Test Plan
+
+Run this checklist before releasing the application.
+
+## 1. Build Test
+
+```powershell
+javac -encoding UTF-8 -d out src\main\java\com\example\ticket\*.java
+```
+
+Expected result:
+
+- Command exits with code `0`
+- No Java compiler errors
+
+## 2. Start Web Application
+
+```powershell
+.\run-ticket-web.cmd
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+Expected result:
+
+- Web app starts on port `8080`
+- Create Ticket page loads
+
+## 3. Web Smoke Test
+
+Check these URLs:
+
+```text
+http://localhost:8080/
+http://localhost:8080/tickets
+http://localhost:8080/tickets?page=2
+http://localhost:8080/pantip
+http://localhost:8080/social
+```
+
+Expected result:
+
+- All pages return HTTP `200`
+- Navigation links are visible
+- List/feed pages show pagination when there are more than 10 records
+- Thai text displays correctly
+
+## 4. Ticket Workflow Test
+
+1. Create a ticket from the web form.
+2. Open `List View`.
+3. Click the ticket subject.
+4. Confirm the detail page opens.
+5. Assign the ticket to another team.
+6. Add a follow-up note.
+7. Close the ticket with a closure note.
+8. Add a private message from the support team.
+9. Add a private message from the customer.
+
+Expected result:
+
+- Ticket is saved to SQLite
+- Ticket appears in List View
+- Detail page shows metadata, description, and history
+- Assignment changes assignee and sets status to `ASSIGNED`
+- Assignment note appears in history
+- Follow-up note appears in history
+- Close action sets status to `CLOSED`
+- Close note appears in history
+- Private messages appear in the private customer conversation section
+- Private message actions appear in structured ticket history
+
+## 5. Pantip Monitor Test
+
+1. Open `Pantip Monitor`.
+2. Add a keyword.
+3. Search the keyword.
+4. Create a ticket from an imported topic.
+5. Click the same topic action again.
+
+Expected result:
+
+- New topics are imported
+- Existing topics are skipped by `topic_id`
+- Created tickets link back to imported topics
+- Duplicate ticket action opens the existing ticket, shows Source References, and records history
+
+## 6. Social Monitor Test
+
+1. Open `Social Monitor`.
+2. Select `PANTIP` or `REDDIT`.
+3. Enter a keyword.
+4. Click `Search and Import New Posts`.
+5. Create a ticket from an imported post.
+6. Click the same post action again.
+
+Expected result:
+
+- New posts are imported
+- Existing posts are skipped by `source + external_id`
+- Created tickets link back to imported posts
+- Duplicate ticket action opens the existing ticket, shows Source References, and records history
+- Reddit search does not fail with HTTP `403`
+
+## 7. Database Check
+
+Database path:
+
+```text
+data/tickets.db
+```
+
+Tables expected:
+
+- `tickets`
+- `keywords`
+- `pantip_topics`
+- `social_posts`
+
+## Release Criteria
+
+Release only when:
+
+- Build passes
+- Web pages return HTTP `200`
+- Ticket create/detail/assign/follow-up/close/private-message works
+- Duplicate feed ticket actions reuse existing tickets and preserve source references/history
+- Pantip import does not duplicate existing topics
+- Social import does not duplicate existing posts
+- No stack traces are shown to normal users during expected workflows

@@ -1,0 +1,42 @@
+@startuml
+title After Sales Service - Use Case Diagram
+
+left to right direction
+
+actor Customer
+actor "Service Agent" as Agent
+actor Technician
+actor "Warehouse Staff" as Warehouse
+actor Manager
+
+rectangle "After Sales Service System" {
+  usecase "Submit Service Request" as UC1
+  usecase "Track Service Status" as UC2
+  usecase "Review Warranty" as UC3
+  usecase "Create Quotation" as UC4
+  usecase "Assign Technician" as UC5
+  usecase "Record Diagnosis" as UC6
+  usecase "Request Spare Part" as UC7
+  usecase "Close Ticket" as UC8
+  usecase "View Service Report" as UC9
+}
+
+Customer --> UC1
+Customer --> UC2
+
+Agent --> UC3
+Agent --> UC4
+Agent --> UC5
+Agent --> UC8
+
+Technician --> UC6
+Technician --> UC7
+
+Warehouse --> UC7
+Manager --> UC9
+
+UC5 ..> UC3 : includes
+UC7 ..> UC6 : extends
+UC8 ..> UC2 : updates
+
+@enduml

@@ -1,0 +1,8 @@
+.git
+.agents
+.codex
+.skill-build
+out
+data
+*.png
+plantuml.jar

@@ -1,0 +1,55 @@
+@startuml
+title LISA LOXLAY - Ticket Handling Activity
+
+start
+:Receive request in LISA Portal;
+:Create ticket number;
+:Identify customer contract and asset;
+:Calculate priority and SLA;
+
+if (Valid contract?) then (yes)
+  :Route ticket to service desk;
+else (no)
+  :Prepare quotation or reject reason;
+  if (Customer approves quotation?) then (yes)
+    :Route ticket to service desk;
+  else (no)
+    :Close ticket as not approved;
+    stop
+  endif
+endif
+
+:Analyze issue;
+
+if (Can solve remotely?) then (yes)
+  :Guide customer remotely;
+  :Record resolution notes;
+else (no)
+  :Assign field engineer;
+  :Check engineer schedule;
+  :Check required spare part;
+
+  if (Spare part available?) then (yes)
+    :Reserve spare part;
+  else (no)
+    :Create spare part request;
+    :Notify customer of ETA;
+  endif
+
+  :Visit customer site;
+  :Repair or replace equipment;
+  :Upload service report;
+endif
+
+:Validate SLA and service result;
+
+if (Customer confirms completion?) then (yes)
+  :Close ticket;
+  :Send satisfaction survey;
+else (no)
+  :Reopen ticket;
+  :Escalate to supervisor;
+endif
+
+stop
+@enduml

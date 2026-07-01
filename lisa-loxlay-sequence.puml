@@ -1,0 +1,49 @@
+@startuml
+title LISA LOXLAY - Service Request Sequence
+
+actor "Customer / Branch User" as Customer
+participant "LISA Portal" as Portal
+participant "LISA Ticket Core" as Lisa
+participant "SLA Engine" as SLA
+participant "Service Desk" as Desk
+participant "Field Engineer" as Engineer
+participant "Asset & Inventory" as Inventory
+participant "Notification Gateway" as Notify
+
+Customer -> Portal: Submit incident / service request
+Portal -> Lisa: Create LISA ticket
+Lisa -> SLA: Calculate priority and SLA target
+SLA --> Lisa: Priority, response time, resolution time
+Lisa -> Notify: Send ticket confirmation
+Notify --> Customer: SMS / email / app notification
+
+Lisa -> Desk: Queue new ticket
+Desk -> Lisa: Review customer, contract, asset
+
+alt Remote support possible
+  Desk -> Customer: Contact and troubleshoot
+  Desk -> Lisa: Record remote resolution
+else Onsite support required
+  Desk -> Engineer: Assign onsite job
+  Engineer -> Lisa: Accept job
+  Engineer -> Inventory: Check spare part
+
+  alt Spare part available
+    Inventory --> Engineer: Reserve spare part
+  else Spare part unavailable
+    Inventory --> Lisa: Backorder required
+    Lisa -> Notify: Notify delay and ETA
+    Notify --> Customer: Waiting for spare part
+  end
+
+  Engineer -> Customer: Visit site and repair
+  Engineer -> Lisa: Submit service report
+end
+
+Lisa -> SLA: Validate SLA result
+SLA --> Lisa: Met / breached
+Lisa -> Customer: Request confirmation
+Customer --> Lisa: Confirm service completion
+Lisa -> Notify: Send satisfaction survey
+
+@enduml
