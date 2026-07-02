@@ -8,6 +8,7 @@ The application supports:
 - Java Swing desktop GUI
 - Lightweight Java web application
 - SQLite storage
+- Project requirement view
 - Ticket list view
 - Pantip keyword monitor
 - Social monitor for multiple sources
@@ -70,6 +71,7 @@ At minimum, verify:
 
 - Build passes
 - Web app starts
+- Projects page opens
 - Create Ticket works
 - List View detail page opens
 - Assignment works
@@ -120,6 +122,8 @@ http://localhost:8080
 Web pages:
 
 - `http://localhost:8080/` - Create Ticket
+- `http://localhost:8080/projects` - Projects
+- `http://localhost:8080/projects/APL-RYP-PAYMENT` - APL/RYP payment requirement
 - `http://localhost:8080/tickets` - List View
 - `http://localhost:8080/pantip` - Pantip Monitor
 - `http://localhost:8080/social` - Social Monitor
@@ -250,6 +254,7 @@ data/tickets.db
 Tables are created automatically on startup:
 
 - `tickets`
+- `projects`
 - `ticket_history`
 - `ticket_messages`
 - `keywords`

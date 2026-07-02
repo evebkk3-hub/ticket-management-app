@@ -108,9 +108,111 @@ final class TicketDatabase {
                         created_at text not null
                     )
                     """);
+            statement.executeUpdate("""
+                    create table if not exists projects (
+                        project_code text primary key,
+                        title text not null,
+                        source_document text,
+                        objectives text not null,
+                        background text not null,
+                        requirements text not null,
+                        created_at text not null,
+                        updated_at text not null
+                    )
+                    """);
             ensureColumn(connection, "pantip_topics", "content", "text");
+            seedAplPaymentProject(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
+        }
+    }
+
+    private void seedAplPaymentProject(Connection connection) throws SQLException {
+        String sql = """
+                insert into projects (
+                    project_code, title, source_document, objectives, background, requirements, created_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                on conflict(project_code) do update set
+                    title = excluded.title,
+                    source_document = excluded.source_document,
+                    objectives = excluded.objectives,
+                    background = excluded.background,
+                    requirements = excluded.requirements,
+                    updated_at = datetime('now')
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, "APL-RYP-PAYMENT");
+            statement.setString(2, "รับชำระเบี้ยประกันภัย RYP ในช่วง APL");
+            statement.setString(3, "Business Flow Receipt APL.vsdx");
+            statement.setString(4, """
+                    1. เพื่อพัฒนาแอปพลิเคชั่น TL Smart และ TLI App ให้สามารถรับชำระเบี้ยประกันภัย RYP ในช่วง APL ได้
+
+                    2. เพื่อพัฒนาระบบ Core System ให้รองรับการรับชำระเบี้ยประกันภัย RYP ในช่วง APL
+                    """);
+            statement.setString(5, """
+                    ปัจจุบันฝ่ายขายสามารถเก็บเบี้ยชำระงวดต่อจากลูกค้าได้ใน Application TL Smart เฉพาะกรมธรรม์ที่เกิด APL ไม่เกิน 90 วัน
+
+                    จึงต้องพัฒนาฟังก์ชันการรับชำระเบี้ยประกันภัยปีต่อกรณีที่กรมธรรม์ของลูกค้าเกิด APL เกิน 90 วัน และมีดอกเบี้ย โดยสามารถชำระผ่านช่องทาง QR Code และ Credit Card เพื่อเพิ่มความสะดวกให้ฝ่ายขายในการรับชำระเบี้ยจากลูกค้าให้ครอบคลุมยิ่งขึ้น
+                    """);
+            statement.setString(6, """
+                    1. พัฒนาเงื่อนไขการเตรียมข้อมูลให้สามารถรองรับการชำระเบี้ยประกันภัยและดอกเบี้ยเบี้ยประกันช่วง APL ผ่านแอปพลิเคชั่น TL Smart และ Thailife Application (TLI App) ได้
+
+                    2. พัฒนาการคำนวณเบี้ยและดอกเบี้ยแบบ realtime
+
+                    3. พัฒนาแอปพลิเคชั่น TL Smart และ Thailife Application (TLI App) ให้สามารถรองรับการชำระเบี้ยประกันภัยและดอกเบี้ยเบี้ยประกันช่วง APL ได้ทั้งกรมธรรม์ InsureMo และ Legacy
+
+                    3.1 เงื่อนไขกรมธรรม์ที่สามารถชำระเบี้ยประกันภัยและดอกเบี้ยเบี้ยประกันช่วง APL บน TL Smart ได้
+                    - กรมธรรม์ที่มีดอกเบี้ย
+                    - กรมธรรม์ที่ไม่มีดอกเบี้ย
+
+                    3.2 การแสดงข้อมูลกรมธรรม์และรายละเอียดเบี้ยประกันบนแอปพลิเคชั่น TL Smart
+
+                    3.3 ช่องทางการชำระเบี้ย (Collection Method) ที่สามารถรับชำระเบี้ยประกันภัยและดอกเบี้ยเบี้ยประกันภัยบน TL Smart
+                    Phase 1: QR และ Credit Card
+                    - Credit Card เฉพาะแบบประกันที่รับบัตรเครดิตได้
+                    Phase 2: Direct Debit One time (RYP) และ Cheque
+
+                    3.4 การส่ง SMS เมื่อมีการชำระเบี้ยปีต่อสำเร็จ
+                    - Content SMS สำหรับ QR และ Credit Card
+
+                    4. พัฒนาระบบเพื่อรองรับการจัดส่งใบเสร็จเบี้ยประกันภัย และใบเสร็จดอกเบี้ยเบี้ยประกัน (ใบเสร็จทั่วไป)
+
+                    4.1 รูปแบบใบเสร็จเบี้ยประกัน และใบเสร็จดอกเบี้ยเบี้ยประกัน (ใบเสร็จทั่วไป) ในรูปแบบกระดาษ
+                    - เลขที่ใบเสร็จ
+                    - ใบเสร็จเบี้ยพิมพ์ที่พี่อ๋อย โดยพี่อ๋อย running เลขที่ใบเสร็จ
+                    - ใบเสร็จทั่วไปพิมพ์ที่พี่หน่า โดยพี่หน่า running เลขที่ใบเสร็จ
+
+                    4.2 พัฒนาระบบเพื่อรองรับการพิมพ์ใบเสร็จทั่วไป (Outsource Printing)
+                    - ปรับระบบพิมพ์ใบเสร็จเบี้ยให้ sorting แยกตามกลุ่มดอกเบี้ยและไม่ดอกเบี้ย
+                    - เพิ่มระบบพิมพ์ใบเสร็จดอกเบี้ยเบี้ยประกันที่งานคลังเอกสาร
+                    - เพิ่มใบปะหน้าสำหรับการพิมพ์ที่ centralized printing
+                    - การ confirm เพื่อส่งพิมพ์ใบเสร็จ ระบบจะเช็คก่อนว่าเบี้ยตรงกันหรือไม่ ถ้าเบี้ยตรงจะส่งได้เลย ถ้าเบี้ยไม่ตรง ข้อมูลจะค้างอยู่ที่ระบบ reconcile
+                    - ใบเสร็จ As is x To be: ระบุ field ที่เปลี่ยน เช่น ชื่อ ผอป, ชื่อ ผรป, หมายเหตุ
+                    - ใบเสร็จทั่วไป As is x To be พร้อม field
+                    - การส่งข้อมูลไประบบ Printing: แปะ flow data และระบุจุด reconcile ข้อมูลของการเงิน
+
+                    5. การพัฒนาการ Update Transaction
+                    5.2 กรมธรรม์บน Legacy ใน Master + Transaction ต่อสัญญา
+                    5.3 พัฒนาการ Update transaction loan กรมธรรม์บน InsureMo
+
+                    6. การพัฒนาการคำนวณผลประโยชน์สำหรับการชำระเบี้ย APL
+                    - แยกเบี้ยชีวิต/rider
+                    - แยกตามงวด
+                    - ไม่ต้องการดอกเบี้ย สามารถเป็นยอดรวมได้
+
+                    7. พัฒนาระบบ reconcile เงินของ Team Collection การชำระเบี้ย APL (Auto reconcile)
+                    - ไม่ต้องแยกเบี้ยและดอกเบี้ย
+                    - ไม่ต้องแยกงวด
+
+                    8. พัฒนาระบบ GL Transaction
+                    - แยกเบี้ยชีวิต/rider
+                    - แยกตามงวด
+                    - ไม่ต้องแยกงวดดอกเบี้ย สามารถเป็นยอดรวมได้
+
+                    9. การออกรายงาน
+                    - รายงานการต่อสัญญา
+                    """);
+            statement.executeUpdate();
         }
     }
 
@@ -179,6 +281,57 @@ final class TicketDatabase {
             return tickets;
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to load tickets.", exception);
+        }
+    }
+
+    List<ProjectItem> findProjects() {
+        String sql = """
+                select project_code, title, source_document, updated_at
+                from projects
+                order by updated_at desc
+                """;
+        List<ProjectItem> projects = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                projects.add(new ProjectItem(
+                        resultSet.getString("project_code"),
+                        resultSet.getString("title"),
+                        resultSet.getString("source_document"),
+                        resultSet.getString("updated_at")));
+            }
+            return projects;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load projects.", exception);
+        }
+    }
+
+    ProjectDetail findProject(String projectCode) {
+        String sql = """
+                select project_code, title, source_document, objectives, background, requirements, created_at, updated_at
+                from projects
+                where project_code = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, projectCode);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return new ProjectDetail(
+                        resultSet.getString("project_code"),
+                        resultSet.getString("title"),
+                        resultSet.getString("source_document"),
+                        resultSet.getString("objectives"),
+                        resultSet.getString("background"),
+                        resultSet.getString("requirements"),
+                        resultSet.getString("created_at"),
+                        resultSet.getString("updated_at"));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load project detail.", exception);
         }
     }
 
@@ -699,6 +852,24 @@ record TicketListItem(
         String priority,
         String status,
         String createdAt) {
+}
+
+record ProjectItem(
+        String projectCode,
+        String title,
+        String sourceDocument,
+        String updatedAt) {
+}
+
+record ProjectDetail(
+        String projectCode,
+        String title,
+        String sourceDocument,
+        String objectives,
+        String background,
+        String requirements,
+        String createdAt,
+        String updatedAt) {
 }
 
 record TicketDetail(

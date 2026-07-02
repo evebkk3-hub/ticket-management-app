@@ -36,6 +36,8 @@ Check these URLs:
 
 ```text
 http://localhost:8080/
+http://localhost:8080/projects
+http://localhost:8080/projects/APL-RYP-PAYMENT
 http://localhost:8080/tickets
 http://localhost:8080/tickets?page=2
 http://localhost:8080/pantip
@@ -46,6 +48,7 @@ Expected result:
 
 - All pages return HTTP `200`
 - Navigation links are visible
+- Projects page shows the APL/RYP payment requirement
 - List/feed pages show pagination when there are more than 10 records
 - Thai text displays correctly
 
@@ -117,6 +120,7 @@ data/tickets.db
 Tables expected:
 
 - `tickets`
+- `projects`
 - `keywords`
 - `pantip_topics`
 - `social_posts`

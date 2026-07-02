@@ -95,7 +95,11 @@ final class WebApplication {
         if (path.matches("/tickets/\\d+")) {
             return ticketDetailPage(Integer.parseInt(path.substring("/tickets/".length())));
         }
+        if (path.matches("/projects/[A-Za-z0-9-]+")) {
+            return projectDetailPage(path.substring("/projects/".length()));
+        }
         return switch (path) {
+            case "/projects" -> projectsPage();
             case "/tickets" -> ticketsPage();
             case "/pantip" -> pantipPage();
             case "/social" -> socialPage();
@@ -132,6 +136,85 @@ final class WebApplication {
                 </section>
                 """;
         return layout("Create Ticket", html);
+    }
+
+    private String projectsPage() {
+        StringBuilder rows = new StringBuilder();
+        for (ProjectItem project : database.findProjects()) {
+            rows.append("<tr>")
+                    .append("<td><a href='/projects/").append(escapeAttribute(project.projectCode())).append("'>")
+                    .append(escape(project.projectCode())).append("</a></td>")
+                    .append("<td><a href='/projects/").append(escapeAttribute(project.projectCode())).append("'>")
+                    .append(escape(project.title())).append("</a></td>")
+                    .append("<td>").append(escape(project.sourceDocument())).append("</td>")
+                    .append("<td>").append(escape(project.updatedAt())).append("</td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='4'>No projects yet.</td></tr>");
+        }
+
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Projects</h2>
+                    <a class="button" href="/projects">Refresh</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>Project Code</th><th>Project</th><th>Source Document</th><th>Updated At</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                """.formatted(rows);
+        return layout("Projects", html);
+    }
+
+    private String projectDetailPage(String projectCode) {
+        ProjectDetail project = database.findProject(projectCode);
+        if (project == null) {
+            return layout("Project Not Found", """
+                    <section class="panel">
+                      <h2>Project not found</h2>
+                      <a class="button" href="/projects">Back to Projects</a>
+                    </section>
+                """);
+        }
+
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>%s</h2>
+                    <a class="button" href="/projects">Back to Projects</a>
+                  </div>
+                  <div class="detail-grid">
+                    <div><strong>Project Code</strong><span>%s</span></div>
+                    <div><strong>Source Document</strong><span>%s</span></div>
+                    <div><strong>Created At</strong><span>%s</span></div>
+                    <div><strong>Updated At</strong><span>%s</span></div>
+                  </div>
+                </section>
+                <section class="panel">
+                  <h2>Requirement Objectives / วัตถุประสงค์</h2>
+                  <pre>%s</pre>
+                </section>
+                <section class="panel">
+                  <h2>Background Concerns / เหตุผลความเป็นมา</h2>
+                  <pre>%s</pre>
+                </section>
+                <section class="panel">
+                  <h2>Summary Requirement</h2>
+                  <pre>%s</pre>
+                </section>
+                """.formatted(
+                escape(project.title()),
+                escape(project.projectCode()),
+                escape(project.sourceDocument()),
+                escape(project.createdAt()),
+                escape(project.updatedAt()),
+                escape(project.objectives()),
+                escape(project.background()),
+                escape(project.requirements()));
+        return layout(project.title(), html);
     }
 
     private String ticketsPage() {
@@ -825,7 +908,7 @@ final class WebApplication {
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>
