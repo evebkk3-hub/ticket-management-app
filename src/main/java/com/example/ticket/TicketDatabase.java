@@ -120,8 +120,59 @@ final class TicketDatabase {
                         updated_at text not null
                     )
                     """);
+            statement.executeUpdate("""
+                    create table if not exists apl_policies (
+                        policy_no text primary key,
+                        customer_name text not null,
+                        app_source text not null,
+                        core_system text not null,
+                        apl_days integer not null,
+                        base_premium real not null,
+                        rider_premium real not null,
+                        interest_amount real not null,
+                        allow_credit_card integer not null,
+                        status text not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists apl_payments (
+                        payment_id text primary key,
+                        policy_no text not null,
+                        collection_id text,
+                        trx_id text,
+                        temp_rp_no text,
+                        pay_period text,
+                        reference_one text,
+                        reference_two text,
+                        reference_three text,
+                        collection_method text not null,
+                        payment_type_desc text,
+                        module_type text,
+                        base_premium real not null,
+                        rider_premium real not null,
+                        interest_amount real not null,
+                        total_amount real not null,
+                        receipt_premium_no text not null,
+                        receipt_interest_no text,
+                        reconcile_status text not null,
+                        transaction_status text not null,
+                        gl_status text not null,
+                        sms_status text not null,
+                        created_at text not null
+                    )
+                    """);
             ensureColumn(connection, "pantip_topics", "content", "text");
+            ensureColumn(connection, "apl_payments", "collection_id", "text");
+            ensureColumn(connection, "apl_payments", "trx_id", "text");
+            ensureColumn(connection, "apl_payments", "temp_rp_no", "text");
+            ensureColumn(connection, "apl_payments", "pay_period", "text");
+            ensureColumn(connection, "apl_payments", "reference_one", "text");
+            ensureColumn(connection, "apl_payments", "reference_two", "text");
+            ensureColumn(connection, "apl_payments", "reference_three", "text");
+            ensureColumn(connection, "apl_payments", "payment_type_desc", "text");
+            ensureColumn(connection, "apl_payments", "module_type", "text");
             seedAplPaymentProject(connection);
+            seedAplPolicies(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
         }
@@ -214,6 +265,40 @@ final class TicketDatabase {
                     """);
             statement.executeUpdate();
         }
+    }
+
+    private void seedAplPolicies(Connection connection) throws SQLException {
+        String sql = """
+                insert into apl_policies (
+                    policy_no, customer_name, app_source, core_system, apl_days,
+                    base_premium, rider_premium, interest_amount, allow_credit_card, status
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(policy_no) do nothing
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            insertAplPolicy(statement, "APL100001", "Somchai Demo", "TL Smart", "Legacy", 120,
+                    18500.00, 2500.00, 740.50, true, "APL_OVER_90");
+            insertAplPolicy(statement, "APL100002", "Suda Demo", "TLI App", "InsureMo", 45,
+                    12600.00, 0.00, 0.00, true, "APL_UNDER_90");
+            insertAplPolicy(statement, "APL100003", "Narin Demo", "TL Smart", "InsureMo", 180,
+                    22100.00, 4200.00, 1510.75, false, "APL_OVER_90_CC_NOT_ALLOWED");
+        }
+    }
+
+    private void insertAplPolicy(PreparedStatement statement, String policyNo, String customerName, String appSource,
+            String coreSystem, int aplDays, double basePremium, double riderPremium, double interestAmount,
+            boolean allowCreditCard, String status) throws SQLException {
+        statement.setString(1, policyNo);
+        statement.setString(2, customerName);
+        statement.setString(3, appSource);
+        statement.setString(4, coreSystem);
+        statement.setInt(5, aplDays);
+        statement.setDouble(6, basePremium);
+        statement.setDouble(7, riderPremium);
+        statement.setDouble(8, interestAmount);
+        statement.setInt(9, allowCreditCard ? 1 : 0);
+        statement.setString(10, status);
+        statement.executeUpdate();
     }
 
     void save(Ticket ticket) {
@@ -333,6 +418,225 @@ final class TicketDatabase {
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to load project detail.", exception);
         }
+    }
+
+    List<AplPolicy> findAplPolicies() {
+        String sql = """
+                select policy_no, customer_name, app_source, core_system, apl_days,
+                       base_premium, rider_premium, interest_amount, allow_credit_card, status
+                from apl_policies
+                order by policy_no
+                """;
+        List<AplPolicy> policies = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                policies.add(aplPolicy(resultSet));
+            }
+            return policies;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL policies.", exception);
+        }
+    }
+
+    AplPolicy findAplPolicy(String policyNo) {
+        String sql = """
+                select policy_no, customer_name, app_source, core_system, apl_days,
+                       base_premium, rider_premium, interest_amount, allow_credit_card, status
+                from apl_policies
+                where policy_no = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, policyNo);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? aplPolicy(resultSet) : null;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL policy.", exception);
+        }
+    }
+
+    AplQuote quoteAplPayment(String policyNo) {
+        AplPolicy policy = findAplPolicy(policyNo);
+        if (policy == null) {
+            return null;
+        }
+        double totalPremium = policy.basePremium() + policy.riderPremium();
+        double totalAmount = totalPremium + policy.interestAmount();
+        return new AplQuote(
+                policy.policyNo(),
+                policy.basePremium(),
+                policy.riderPremium(),
+                policy.interestAmount(),
+                totalPremium,
+                totalAmount,
+                policy.interestAmount() > 0,
+                policy.allowCreditCard());
+    }
+
+    AplPayment createAplPayment(String policyNo, String collectionMethod) {
+        AplPolicy policy = findAplPolicy(policyNo);
+        if (policy == null) {
+            throw new IllegalArgumentException("APL policy not found: " + policyNo);
+        }
+        if ("CREDIT_CARD".equals(collectionMethod) && !policy.allowCreditCard()) {
+            throw new IllegalArgumentException("Credit Card is not allowed for policy: " + policyNo);
+        }
+        if (!List.of("QR", "CREDIT_CARD", "DIRECT_DEBIT", "CHEQUE").contains(collectionMethod)) {
+            throw new IllegalArgumentException("Unsupported collection method: " + collectionMethod);
+        }
+
+        AplQuote quote = quoteAplPayment(policyNo);
+        String paymentId = "APL" + System.currentTimeMillis();
+        String collectionId = "COL" + paymentId.substring(3);
+        String trxId = "TRX" + paymentId.substring(3);
+        String tempRpNo = "TMP" + paymentId.substring(3);
+        String payPeriod = policy.aplDays() > 90 ? "APL_OVER_90" : "APL_UNDER_90";
+        String referenceOne = tempRpNo;
+        String referenceTwo = policy.policyNo();
+        String referenceThree = "Legacy".equalsIgnoreCase(policy.coreSystem()) ? "LH001" : "H001";
+        String receiptPremiumNo = "RYP-" + paymentId;
+        String receiptInterestNo = quote.hasInterest() ? "INT-" + paymentId : null;
+        String paymentTypeDesc = switch (collectionMethod) {
+            case "QR" -> "QR_CODE";
+            case "CREDIT_CARD" -> "CREDIT_CARD";
+            case "DIRECT_DEBIT" -> "DIRECT_DEBIT_ONE_TIME";
+            case "CHEQUE" -> "CHEQUE";
+            default -> collectionMethod;
+        };
+        String moduleType = "RYP_APL";
+        String reconcileStatus = "MATCHED";
+        String transactionStatus = policy.coreSystem() + "_UPDATED";
+        String glStatus = "GL_READY";
+        String smsStatus = ("QR".equals(collectionMethod) || "CREDIT_CARD".equals(collectionMethod))
+                ? "SMS_QUEUED"
+                : "SMS_NOT_REQUIRED";
+
+        String sql = """
+                insert into apl_payments (
+                    payment_id, policy_no, collection_id, trx_id, temp_rp_no, pay_period,
+                    reference_one, reference_two, reference_three, collection_method,
+                    payment_type_desc, module_type, base_premium, rider_premium,
+                    interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
+                    reconcile_status, transaction_status, gl_status, sms_status, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, paymentId);
+            statement.setString(2, policyNo);
+            statement.setString(3, collectionId);
+            statement.setString(4, trxId);
+            statement.setString(5, tempRpNo);
+            statement.setString(6, payPeriod);
+            statement.setString(7, referenceOne);
+            statement.setString(8, referenceTwo);
+            statement.setString(9, referenceThree);
+            statement.setString(10, collectionMethod);
+            statement.setString(11, paymentTypeDesc);
+            statement.setString(12, moduleType);
+            statement.setDouble(13, quote.basePremium());
+            statement.setDouble(14, quote.riderPremium());
+            statement.setDouble(15, quote.interestAmount());
+            statement.setDouble(16, quote.totalAmount());
+            statement.setString(17, receiptPremiumNo);
+            statement.setString(18, receiptInterestNo);
+            statement.setString(19, reconcileStatus);
+            statement.setString(20, transactionStatus);
+            statement.setString(21, glStatus);
+            statement.setString(22, smsStatus);
+            statement.executeUpdate();
+            return findAplPayment(paymentId);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to create APL payment.", exception);
+        }
+    }
+
+    AplPayment findAplPayment(String paymentId) {
+        String sql = """
+                select payment_id, policy_no, collection_id, trx_id, temp_rp_no, pay_period,
+                       reference_one, reference_two, reference_three, collection_method,
+                       payment_type_desc, module_type, base_premium, rider_premium,
+                       interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
+                       reconcile_status, transaction_status, gl_status, sms_status, created_at
+                from apl_payments
+                where payment_id = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, paymentId);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() ? aplPayment(resultSet) : null;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL payment.", exception);
+        }
+    }
+
+    List<AplPayment> findAplPayments() {
+        String sql = """
+                select payment_id, policy_no, collection_id, trx_id, temp_rp_no, pay_period,
+                       reference_one, reference_two, reference_three, collection_method,
+                       payment_type_desc, module_type, base_premium, rider_premium,
+                       interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
+                       reconcile_status, transaction_status, gl_status, sms_status, created_at
+                from apl_payments
+                order by created_at desc
+                """;
+        List<AplPayment> payments = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                payments.add(aplPayment(resultSet));
+            }
+            return payments;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL payments.", exception);
+        }
+    }
+
+    private AplPolicy aplPolicy(ResultSet resultSet) throws SQLException {
+        return new AplPolicy(
+                resultSet.getString("policy_no"),
+                resultSet.getString("customer_name"),
+                resultSet.getString("app_source"),
+                resultSet.getString("core_system"),
+                resultSet.getInt("apl_days"),
+                resultSet.getDouble("base_premium"),
+                resultSet.getDouble("rider_premium"),
+                resultSet.getDouble("interest_amount"),
+                resultSet.getInt("allow_credit_card") == 1,
+                resultSet.getString("status"));
+    }
+
+    private AplPayment aplPayment(ResultSet resultSet) throws SQLException {
+        return new AplPayment(
+                resultSet.getString("payment_id"),
+                resultSet.getString("policy_no"),
+                resultSet.getString("collection_id"),
+                resultSet.getString("trx_id"),
+                resultSet.getString("temp_rp_no"),
+                resultSet.getString("pay_period"),
+                resultSet.getString("reference_one"),
+                resultSet.getString("reference_two"),
+                resultSet.getString("reference_three"),
+                resultSet.getString("collection_method"),
+                resultSet.getString("payment_type_desc"),
+                resultSet.getString("module_type"),
+                resultSet.getDouble("base_premium"),
+                resultSet.getDouble("rider_premium"),
+                resultSet.getDouble("interest_amount"),
+                resultSet.getDouble("total_amount"),
+                resultSet.getString("receipt_premium_no"),
+                resultSet.getString("receipt_interest_no"),
+                resultSet.getString("reconcile_status"),
+                resultSet.getString("transaction_status"),
+                resultSet.getString("gl_status"),
+                resultSet.getString("sms_status"),
+                resultSet.getString("created_at"));
     }
 
     String findSummary(int ticketId) {
@@ -870,6 +1174,56 @@ record ProjectDetail(
         String requirements,
         String createdAt,
         String updatedAt) {
+}
+
+record AplPolicy(
+        String policyNo,
+        String customerName,
+        String appSource,
+        String coreSystem,
+        int aplDays,
+        double basePremium,
+        double riderPremium,
+        double interestAmount,
+        boolean allowCreditCard,
+        String status) {
+}
+
+record AplQuote(
+        String policyNo,
+        double basePremium,
+        double riderPremium,
+        double interestAmount,
+        double totalPremium,
+        double totalAmount,
+        boolean hasInterest,
+        boolean allowCreditCard) {
+}
+
+record AplPayment(
+        String paymentId,
+        String policyNo,
+        String collectionId,
+        String trxId,
+        String tempRpNo,
+        String payPeriod,
+        String referenceOne,
+        String referenceTwo,
+        String referenceThree,
+        String collectionMethod,
+        String paymentTypeDesc,
+        String moduleType,
+        double basePremium,
+        double riderPremium,
+        double interestAmount,
+        double totalAmount,
+        String receiptPremiumNo,
+        String receiptInterestNo,
+        String reconcileStatus,
+        String transactionStatus,
+        String glStatus,
+        String smsStatus,
+        String createdAt) {
 }
 
 record TicketDetail(

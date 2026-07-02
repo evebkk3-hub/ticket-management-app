@@ -9,6 +9,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class WebMain {
@@ -42,6 +43,14 @@ final class WebApplication {
         currentExchange.set(exchange);
         try {
             String path = exchange.getRequestURI().getPath();
+            if (path.startsWith("/api/apl")) {
+                handleAplApi(exchange, path);
+                return;
+            }
+            if (isPost(exchange) && "/apl/payments".equals(path)) {
+                createAplPayment(exchange);
+                return;
+            }
             if (isPost(exchange) && "/tickets".equals(path)) {
                 createTicket(exchange);
                 return;
@@ -99,6 +108,7 @@ final class WebApplication {
             return projectDetailPage(path.substring("/projects/".length()));
         }
         return switch (path) {
+            case "/apl" -> aplPage();
             case "/projects" -> projectsPage();
             case "/tickets" -> ticketsPage();
             case "/pantip" -> pantipPage();
@@ -215,6 +225,100 @@ final class WebApplication {
                 escape(project.background()),
                 escape(project.requirements()));
         return layout(project.title(), html);
+    }
+
+    private String aplPage() {
+        StringBuilder policyRows = new StringBuilder();
+        for (AplPolicy policy : database.findAplPolicies()) {
+            AplQuote quote = database.quoteAplPayment(policy.policyNo());
+            policyRows.append("<tr>")
+                    .append("<td><strong>").append(escape(policy.policyNo())).append("</strong><p>")
+                    .append(escape(policy.customerName())).append("</p></td>")
+                    .append("<td>").append(escape(policy.appSource())).append("</td>")
+                    .append("<td>").append(escape(policy.coreSystem())).append("</td>")
+                    .append("<td>").append(policy.aplDays()).append(" days</td>")
+                    .append("<td>").append(money(quote.totalPremium())).append("<p>Interest ")
+                    .append(money(quote.interestAmount())).append("</p></td>")
+                    .append("<td>").append(money(quote.totalAmount())).append("</td>")
+                    .append("<td><span class='status'>").append(escape(policy.status())).append("</span></td>")
+                    .append("<td class='action-cell'>")
+                    .append(paymentForm(policy.policyNo(), "QR", "QR"))
+                    .append(policy.allowCreditCard()
+                            ? paymentForm(policy.policyNo(), "CREDIT_CARD", "Credit Card")
+                            : "<span class='button disabled'>Credit Card N/A</span>")
+                    .append("</td>")
+                    .append("</tr>");
+        }
+
+        StringBuilder paymentRows = new StringBuilder();
+        for (AplPayment payment : database.findAplPayments()) {
+            paymentRows.append("<tr>")
+                    .append("<td><strong>").append(escape(payment.paymentId())).append("</strong><p>")
+                    .append(escape(payment.createdAt())).append("</p></td>")
+                    .append("<td>").append(escape(payment.policyNo())).append("<p>")
+                    .append(escape(payment.payPeriod())).append("</p></td>")
+                    .append("<td>").append(escape(payment.collectionMethod())).append("<p>")
+                    .append(escape(payment.paymentTypeDesc())).append("</p></td>")
+                    .append("<td>").append(escape(payment.collectionId())).append("<p>")
+                    .append(escape(payment.trxId())).append("</p></td>")
+                    .append("<td>").append(money(payment.totalAmount())).append("<p>Interest ")
+                    .append(money(payment.interestAmount())).append("</p></td>")
+                    .append("<td>").append(escape(payment.receiptPremiumNo())).append("<p>")
+                    .append(escape(nullToBlank(payment.receiptInterestNo()))).append("</p></td>")
+                    .append("<td><span class='status'>").append(escape(payment.reconcileStatus())).append("</span></td>")
+                    .append("<td><span class='status'>").append(escape(payment.transactionStatus())).append("</span><p>")
+                    .append(escape(payment.glStatus())).append(" / ").append(escape(payment.smsStatus())).append("</p></td>")
+                    .append("</tr>");
+        }
+        if (paymentRows.isEmpty()) {
+            paymentRows.append("<tr><td colspan='8'>No APL payments yet.</td></tr>");
+        }
+
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>APL/RYP Payment Console</h2>
+                    <a class="button" href="/projects/APL-RYP-PAYMENT">Requirement</a>
+                  </div>
+                  <div class="detail-grid">
+                    <div><strong>Scope</strong><span>TL Smart, TLI App, Core System</span></div>
+                    <div><strong>Payment Phase 1</strong><span>QR Code, Credit Card</span></div>
+                    <div><strong>Core Support</strong><span>Legacy, InsureMo</span></div>
+                    <div><strong>Automation</strong><span>Receipt, Reconcile, Transaction, GL, SMS</span></div>
+                  </div>
+                </section>
+                <section class="panel">
+                  <h2>Policy Premium and Realtime Quote</h2>
+                  <table>
+                    <thead><tr><th>Policy</th><th>App</th><th>Core</th><th>APL</th><th>Premium</th><th>Total Due</th><th>Status</th><th>Payment</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>Receipt, Reconcile, Transaction and GL Report</h2>
+                  <table>
+                    <thead><tr><th>Payment</th><th>Policy</th><th>Method</th><th>Collection/Trx</th><th>Amount</th><th>Receipts</th><th>Reconcile</th><th>Downstream</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>API Endpoints</h2>
+                  <pre>GET  /api/apl/policies
+GET  /api/apl/policies/{policyNo}
+GET  /api/apl/quote?policyNo=APL100001
+GET  /api/apl/payments
+POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
+                </section>
+                """.formatted(policyRows, paymentRows);
+        return layout("APL/RYP Payment", html);
+    }
+
+    private String paymentForm(String policyNo, String collectionMethod, String label) {
+        return "<form method='post' action='/apl/payments'>"
+                + "<input type='hidden' name='policyNo' value='" + escapeAttribute(policyNo) + "'>"
+                + "<input type='hidden' name='collectionMethod' value='" + escapeAttribute(collectionMethod) + "'>"
+                + "<button class='primary' type='submit'>" + escape(label) + "</button>"
+                + "</form>";
     }
 
     private String ticketsPage() {
@@ -725,6 +829,77 @@ final class WebApplication {
         redirect(exchange, "/social");
     }
 
+    private void createAplPayment(HttpExchange exchange) throws IOException {
+        Map<String, String> form = readForm(exchange);
+        String policyNo = form.getOrDefault("policyNo", "").trim();
+        String collectionMethod = form.getOrDefault("collectionMethod", "QR").trim();
+        database.createAplPayment(policyNo, collectionMethod);
+        redirect(exchange, "/apl");
+    }
+
+    private void handleAplApi(HttpExchange exchange, String path) throws IOException {
+        if (isPost(exchange) && "/api/apl/payments".equals(path)) {
+            Map<String, String> form = readForm(exchange);
+            try {
+                AplPayment payment = database.createAplPayment(
+                        form.getOrDefault("policyNo", "").trim(),
+                        form.getOrDefault("collectionMethod", "QR").trim());
+                renderJson(exchange, aplPaymentJson(payment), 201);
+            } catch (IllegalArgumentException exception) {
+                renderJson(exchange, "{\"error\":\"validation_failed\",\"message\":\""
+                        + jsonEscape(exception.getMessage()) + "\"}", 400);
+            }
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/policies".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplPolicy> policies = database.findAplPolicies();
+            for (int i = 0; i < policies.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplPolicyJson(policies.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && path.matches("/api/apl/policies/[A-Za-z0-9-]+")) {
+            String policyNo = path.substring("/api/apl/policies/".length());
+            AplPolicy policy = database.findAplPolicy(policyNo);
+            if (policy == null) {
+                renderJson(exchange, "{\"error\":\"policy_not_found\"}", 404);
+                return;
+            }
+            renderJson(exchange, aplPolicyJson(policy), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/quote".equals(path)) {
+            Map<String, String> params = parseQuery(exchange.getRequestURI().getRawQuery());
+            AplQuote quote = database.quoteAplPayment(params.getOrDefault("policyNo", ""));
+            if (quote == null) {
+                renderJson(exchange, "{\"error\":\"policy_not_found\"}", 404);
+                return;
+            }
+            renderJson(exchange, aplQuoteJson(quote), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/payments".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplPayment> payments = database.findAplPayments();
+            for (int i = 0; i < payments.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplPaymentJson(payments.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
+    }
+
     private TicketWorkflow workflow() {
         TicketWorkflow workflow = new TicketWorkflow();
         workflow.setNextTicketId(database.nextTicketId());
@@ -820,6 +995,93 @@ final class WebApplication {
         }
     }
 
+    private void renderJson(HttpExchange exchange, String json, int status) throws IOException {
+        byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
+        exchange.sendResponseHeaders(status, bytes.length);
+        try (OutputStream output = exchange.getResponseBody()) {
+            output.write(bytes);
+        }
+    }
+
+    private String aplPolicyJson(AplPolicy policy) {
+        return "{"
+                + jsonField("policyNo", policy.policyNo()) + ","
+                + jsonField("customerName", policy.customerName()) + ","
+                + jsonField("appSource", policy.appSource()) + ","
+                + jsonField("coreSystem", policy.coreSystem()) + ","
+                + "\"aplDays\":" + policy.aplDays() + ","
+                + "\"basePremium\":" + jsonNumber(policy.basePremium()) + ","
+                + "\"riderPremium\":" + jsonNumber(policy.riderPremium()) + ","
+                + "\"interestAmount\":" + jsonNumber(policy.interestAmount()) + ","
+                + "\"allowCreditCard\":" + policy.allowCreditCard() + ","
+                + jsonField("status", policy.status())
+                + "}";
+    }
+
+    private String aplQuoteJson(AplQuote quote) {
+        return "{"
+                + jsonField("policyNo", quote.policyNo()) + ","
+                + "\"basePremium\":" + jsonNumber(quote.basePremium()) + ","
+                + "\"riderPremium\":" + jsonNumber(quote.riderPremium()) + ","
+                + "\"interestAmount\":" + jsonNumber(quote.interestAmount()) + ","
+                + "\"totalPremium\":" + jsonNumber(quote.totalPremium()) + ","
+                + "\"totalAmount\":" + jsonNumber(quote.totalAmount()) + ","
+                + "\"hasInterest\":" + quote.hasInterest() + ","
+                + "\"allowCreditCard\":" + quote.allowCreditCard()
+                + "}";
+    }
+
+    private String aplPaymentJson(AplPayment payment) {
+        return "{"
+                + jsonField("paymentId", payment.paymentId()) + ","
+                + jsonField("policyNo", payment.policyNo()) + ","
+                + jsonField("collectionId", payment.collectionId()) + ","
+                + jsonField("trxId", payment.trxId()) + ","
+                + jsonField("tempRpNo", payment.tempRpNo()) + ","
+                + jsonField("payPeriod", payment.payPeriod()) + ","
+                + jsonField("referenceOne", payment.referenceOne()) + ","
+                + jsonField("referenceTwo", payment.referenceTwo()) + ","
+                + jsonField("referenceThree", payment.referenceThree()) + ","
+                + jsonField("collectionMethod", payment.collectionMethod()) + ","
+                + jsonField("paymentTypeDesc", payment.paymentTypeDesc()) + ","
+                + jsonField("moduleType", payment.moduleType()) + ","
+                + "\"basePremium\":" + jsonNumber(payment.basePremium()) + ","
+                + "\"riderPremium\":" + jsonNumber(payment.riderPremium()) + ","
+                + "\"interestAmount\":" + jsonNumber(payment.interestAmount()) + ","
+                + "\"totalAmount\":" + jsonNumber(payment.totalAmount()) + ","
+                + jsonField("receiptPremiumNo", payment.receiptPremiumNo()) + ","
+                + jsonField("receiptInterestNo", nullToBlank(payment.receiptInterestNo())) + ","
+                + jsonField("reconcileStatus", payment.reconcileStatus()) + ","
+                + jsonField("transactionStatus", payment.transactionStatus()) + ","
+                + jsonField("glStatus", payment.glStatus()) + ","
+                + jsonField("smsStatus", payment.smsStatus()) + ","
+                + jsonField("createdAt", payment.createdAt())
+                + "}";
+    }
+
+    private String jsonField(String key, String value) {
+        return "\"" + key + "\":\"" + jsonEscape(value) + "\"";
+    }
+
+    private String jsonEscape(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\r", "\\r")
+                .replace("\n", "\\n");
+    }
+
+    private String jsonNumber(double value) {
+        return String.format(Locale.US, "%.2f", value);
+    }
+
+    private String money(double value) {
+        return String.format(Locale.US, "%,.2f", value);
+    }
+
     private String layout(String title, String body) {
         return """
                 <!doctype html>
@@ -876,6 +1138,7 @@ final class WebApplication {
                     .inline-form { display: flex; gap: 8px; margin-bottom: 16px; }
                     .inline-form input { flex: 1; }
                     .section-title { display: flex; justify-content: space-between; align-items: center; }
+                    .action-cell { display: flex; gap: 8px; flex-wrap: wrap; }
                     .pagination { display: flex; gap: 10px; align-items: center; justify-content: flex-end; padding-top: 14px; color: #475569; }
                     .detail-grid { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: 12px; }
                     .detail-grid div { display: grid; gap: 5px; background: var(--soft); border: 1px solid #e2e8f0; border-radius: 10px; padding: 13px; }
@@ -908,7 +1171,7 @@ final class WebApplication {
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>
@@ -938,6 +1201,9 @@ final class WebApplication {
                         var action = form.getAttribute("action") || "";
                         if (action.indexOf("/social/search") >= 0 || action.indexOf("/pantip/search") >= 0) {
                           return ["Searching and importing", "Fetching posts and skipping duplicates.", ["Connecting", "Searching", "Parsing results", "Saving new records"]];
+                        }
+                        if (action.indexOf("/apl/payments") >= 0) {
+                          return ["Creating APL payment", "Calculating premium, receipts, reconcile, and GL.", ["Calculating", "Creating payment", "Writing receipts", "Reconciling", "Updating GL"]];
                         }
                         if (action.indexOf("/message") >= 0) {
                           return ["Sending message", "Saving the private customer conversation.", ["Validating", "Saving message", "Updating history"]];

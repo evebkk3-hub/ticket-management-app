@@ -9,6 +9,7 @@ The application supports:
 - Lightweight Java web application
 - SQLite storage
 - Project requirement view
+- APL/RYP payment app and API
 - Ticket list view
 - Pantip keyword monitor
 - Social monitor for multiple sources
@@ -72,6 +73,7 @@ At minimum, verify:
 - Build passes
 - Web app starts
 - Projects page opens
+- APL/RYP Payment page and API work
 - Create Ticket works
 - List View detail page opens
 - Assignment works
@@ -122,6 +124,7 @@ http://localhost:8080
 Web pages:
 
 - `http://localhost:8080/` - Create Ticket
+- `http://localhost:8080/apl` - APL/RYP Payment Console
 - `http://localhost:8080/projects` - Projects
 - `http://localhost:8080/projects/APL-RYP-PAYMENT` - APL/RYP payment requirement
 - `http://localhost:8080/tickets` - List View
@@ -255,6 +258,8 @@ Tables are created automatically on startup:
 
 - `tickets`
 - `projects`
+- `apl_policies`
+- `apl_payments`
 - `ticket_history`
 - `ticket_messages`
 - `keywords`
@@ -262,6 +267,44 @@ Tables are created automatically on startup:
 - `social_posts`
 
 Pantip topics use `topic_id` as the unique key. If a topic was already imported, the app skips it and only imports new topics.
+
+## APL/RYP Payment Workflow
+
+The APL/RYP Payment Console supports the requirement for TL Smart, TLI App, and Core System payment handling.
+
+Page:
+
+```text
+http://localhost:8080/apl
+```
+
+Capabilities:
+
+- Show sample Legacy and InsureMo policies in APL period
+- Calculate base premium, rider premium, interest, and total due in realtime
+- Support Phase 1 collection methods: QR and Credit Card
+- Block Credit Card when the policy/product is not eligible
+- Create premium receipt and interest receipt numbers
+- Store payment transaction fields aligned with the NASA R2 data dictionary, including `collection_id`, `trx_id`, `temp_rp_no`, `reference_one`, `reference_two`, `reference_three`, `payment_type_desc`, and `module_type`
+- Auto reconcile matched payments
+- Mark Core transaction update and GL readiness
+- Queue SMS for QR and Credit Card payments
+
+APL API:
+
+```text
+GET  /api/apl/policies
+GET  /api/apl/policies/{policyNo}
+GET  /api/apl/quote?policyNo=APL100001
+GET  /api/apl/payments
+POST /api/apl/payments
+```
+
+Example API payment body:
+
+```text
+policyNo=APL100001&collectionMethod=QR
+```
 
 ## Pantip Monitor Workflow
 

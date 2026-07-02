@@ -36,6 +36,7 @@ Check these URLs:
 
 ```text
 http://localhost:8080/
+http://localhost:8080/apl
 http://localhost:8080/projects
 http://localhost:8080/projects/APL-RYP-PAYMENT
 http://localhost:8080/tickets
@@ -48,6 +49,7 @@ Expected result:
 
 - All pages return HTTP `200`
 - Navigation links are visible
+- APL/RYP Payment Console is visible
 - Projects page shows the APL/RYP payment requirement
 - List/feed pages show pagination when there are more than 10 records
 - Thai text displays correctly
@@ -77,7 +79,31 @@ Expected result:
 - Private messages appear in the private customer conversation section
 - Private message actions appear in structured ticket history
 
-## 5. Pantip Monitor Test
+## 5. APL/RYP Payment Test
+
+1. Open `APL/RYP Payment Console`.
+2. Confirm sample policies show Legacy and InsureMo.
+3. Create a QR payment for `APL100001`.
+4. Create a Credit Card payment for a policy that allows cards.
+5. Confirm Credit Card is blocked or disabled for ineligible policy.
+6. Call API:
+
+   ```text
+   GET /api/apl/policies
+   GET /api/apl/quote?policyNo=APL100001
+   POST /api/apl/payments
+   ```
+
+Expected result:
+
+- Premium, rider, interest, and total due are calculated
+- Payment transaction includes collection/trx/reference fields
+- Premium and interest receipt numbers are generated
+- Reconcile status is `MATCHED`
+- Core transaction status and GL status are updated
+- QR/Credit Card payments queue SMS
+
+## 6. Pantip Monitor Test
 
 1. Open `Pantip Monitor`.
 2. Add a keyword.
@@ -92,7 +118,7 @@ Expected result:
 - Created tickets link back to imported topics
 - Duplicate ticket action opens the existing ticket, shows Source References, and records history
 
-## 6. Social Monitor Test
+## 7. Social Monitor Test
 
 1. Open `Social Monitor`.
 2. Select `PANTIP` or `REDDIT`.
@@ -109,7 +135,7 @@ Expected result:
 - Duplicate ticket action opens the existing ticket, shows Source References, and records history
 - Reddit search does not fail with HTTP `403`
 
-## 7. Database Check
+## 8. Database Check
 
 Database path:
 
@@ -121,6 +147,8 @@ Tables expected:
 
 - `tickets`
 - `projects`
+- `apl_policies`
+- `apl_payments`
 - `keywords`
 - `pantip_topics`
 - `social_posts`
@@ -131,6 +159,7 @@ Release only when:
 
 - Build passes
 - Web pages return HTTP `200`
+- APL/RYP payment app and API work
 - Ticket create/detail/assign/follow-up/close/private-message works
 - Duplicate feed ticket actions reuse existing tickets and preserve source references/history
 - Pantip import does not duplicate existing topics
