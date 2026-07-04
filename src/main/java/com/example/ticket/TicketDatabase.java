@@ -174,6 +174,18 @@ final class TicketDatabase {
                     )
                     """);
             statement.executeUpdate("""
+                    create table if not exists payment_channels (
+                        channel_code text primary key,
+                        channel_name text not null,
+                        phase text not null,
+                        is_enabled integer not null,
+                        allow_apl integer not null,
+                        allow_interest integer not null,
+                        credit_card_required integer not null,
+                        remark text
+                    )
+                    """);
+            statement.executeUpdate("""
                     create table if not exists apl_payments (
                         payment_id text primary key,
                         policy_no text not null,
@@ -197,6 +209,10 @@ final class TicketDatabase {
                         transaction_status text not null,
                         gl_status text not null,
                         sms_status text not null,
+                        payment_status text not null default 'CREATED',
+                        paid_amount real,
+                        response_code text,
+                        processed_at text,
                         created_at text not null
                     )
                     """);
@@ -210,8 +226,13 @@ final class TicketDatabase {
             ensureColumn(connection, "apl_payments", "reference_three", "text");
             ensureColumn(connection, "apl_payments", "payment_type_desc", "text");
             ensureColumn(connection, "apl_payments", "module_type", "text");
+            ensureColumn(connection, "apl_payments", "payment_status", "text not null default 'CREATED'");
+            ensureColumn(connection, "apl_payments", "paid_amount", "real");
+            ensureColumn(connection, "apl_payments", "response_code", "text");
+            ensureColumn(connection, "apl_payments", "processed_at", "text");
             seedAplPaymentProject(connection);
             seedR3Backlog(connection);
+            seedPaymentChannels(connection);
             seedAplPolicies(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
@@ -514,6 +535,47 @@ final class TicketDatabase {
         statement.executeUpdate();
     }
 
+    private void seedPaymentChannels(Connection connection) throws SQLException {
+        String sql = """
+                insert into payment_channels (
+                    channel_code, channel_name, phase, is_enabled, allow_apl, allow_interest,
+                    credit_card_required, remark
+                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(channel_code) do update set
+                    channel_name = excluded.channel_name,
+                    phase = excluded.phase,
+                    is_enabled = excluded.is_enabled,
+                    allow_apl = excluded.allow_apl,
+                    allow_interest = excluded.allow_interest,
+                    credit_card_required = excluded.credit_card_required,
+                    remark = excluded.remark
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            insertPaymentChannel(statement, "QR", "QR Code", "PHASE_1", true, true, true, false,
+                    "Active for APL premium and interest payment.");
+            insertPaymentChannel(statement, "CREDIT_CARD", "Credit Card", "PHASE_1", true, true, true, true,
+                    "Allowed only when policy/product supports credit card.");
+            insertPaymentChannel(statement, "DIRECT_DEBIT", "Direct Debit One Time (RYP)", "PHASE_2", false, true, true,
+                    false, "Planned for Phase 2.");
+            insertPaymentChannel(statement, "CHEQUE", "Cheque", "PHASE_2", false, true, true, false,
+                    "Planned for Phase 2.");
+        }
+    }
+
+    private void insertPaymentChannel(PreparedStatement statement, String channelCode, String channelName, String phase,
+            boolean isEnabled, boolean allowApl, boolean allowInterest, boolean creditCardRequired, String remark)
+            throws SQLException {
+        statement.setString(1, channelCode);
+        statement.setString(2, channelName);
+        statement.setString(3, phase);
+        statement.setInt(4, isEnabled ? 1 : 0);
+        statement.setInt(5, allowApl ? 1 : 0);
+        statement.setInt(6, allowInterest ? 1 : 0);
+        statement.setInt(7, creditCardRequired ? 1 : 0);
+        statement.setString(8, remark);
+        statement.executeUpdate();
+    }
+
     void save(Ticket ticket) {
         String sql = """
                 insert into tickets (
@@ -764,6 +826,57 @@ final class TicketDatabase {
         }
     }
 
+    List<PaymentChannel> findPaymentChannels() {
+        String sql = """
+                select channel_code, channel_name, phase, is_enabled, allow_apl, allow_interest,
+                       credit_card_required, remark
+                from payment_channels
+                order by phase, channel_code
+                """;
+        List<PaymentChannel> channels = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                channels.add(paymentChannel(resultSet));
+            }
+            return channels;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load payment channels.", exception);
+        }
+    }
+
+    AplEligibility checkAplEligibility(String policyNo) {
+        AplPolicy policy = findAplPolicy(policyNo);
+        if (policy == null) {
+            return new AplEligibility(policyNo, false, false, false, false, false,
+                    "Policy not found.");
+        }
+        boolean validProduct = true;
+        boolean validPolicyStatus = policy.status().startsWith("APL_");
+        boolean validAplStatus = policy.aplDays() > 0;
+        boolean hasInterest = policy.interestAmount() > 0;
+        boolean eligible = validProduct && validPolicyStatus && validAplStatus;
+        String message = eligible
+                ? "Policy is eligible for APL/RYP payment."
+                : "Policy is not eligible for APL/RYP payment.";
+        return new AplEligibility(policy.policyNo(), eligible, validProduct, validPolicyStatus,
+                validAplStatus, hasInterest, message);
+    }
+
+    AplPreparedPolicy prepareAplPolicy(String policyNo) {
+        AplPolicy policy = findAplPolicy(policyNo);
+        AplQuote quote = quoteAplPayment(policyNo);
+        AplEligibility eligibility = checkAplEligibility(policyNo);
+        if (policy == null || quote == null) {
+            return null;
+        }
+        String agentCode = "AGT-" + policy.policyNo().substring(Math.max(0, policy.policyNo().length() - 4));
+        String exclusiveCode = policy.aplDays() > 90 ? "APL_OVER_90_INTEREST" : "APL_STANDARD";
+        return new AplPreparedPolicy(policy.policyNo(), policy.customerName(), policy.appSource(),
+                policy.coreSystem(), agentCode, exclusiveCode, eligibility.eligible(), quote.totalAmount());
+    }
+
     List<AplPolicy> findAplPolicies() {
         String sql = """
                 select policy_no, customer_name, app_source, core_system, apl_days,
@@ -904,7 +1017,8 @@ final class TicketDatabase {
                        reference_one, reference_two, reference_three, collection_method,
                        payment_type_desc, module_type, base_premium, rider_premium,
                        interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
-                       reconcile_status, transaction_status, gl_status, sms_status, created_at
+                       reconcile_status, transaction_status, gl_status, sms_status,
+                       payment_status, paid_amount, response_code, processed_at, created_at
                 from apl_payments
                 where payment_id = ?
                 """;
@@ -925,7 +1039,8 @@ final class TicketDatabase {
                        reference_one, reference_two, reference_three, collection_method,
                        payment_type_desc, module_type, base_premium, rider_premium,
                        interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
-                       reconcile_status, transaction_status, gl_status, sms_status, created_at
+                       reconcile_status, transaction_status, gl_status, sms_status,
+                       payment_status, paid_amount, response_code, processed_at, created_at
                 from apl_payments
                 order by created_at desc
                 """;
@@ -940,6 +1055,67 @@ final class TicketDatabase {
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to load APL payments.", exception);
         }
+    }
+
+    AplPayment updateAplPaymentStatus(String paymentId, String paymentResult, String responseCode, double paidAmount) {
+        AplPayment payment = findAplPayment(paymentId);
+        if (payment == null) {
+            throw new IllegalArgumentException("APL payment not found: " + paymentId);
+        }
+        if ("SUCCESS".equals(payment.paymentStatus())) {
+            return payment;
+        }
+
+        boolean successResult = "SUCCESS".equalsIgnoreCase(paymentResult) || "0".equals(responseCode);
+        boolean amountMatched = Math.abs(payment.totalAmount() - paidAmount) < 0.01;
+        String paymentStatus = successResult ? "SUCCESS" : "FAILED";
+        String reconcileStatus = successResult && amountMatched ? "MATCHED" : successResult ? "UNMATCHED" : "FAILED";
+        String transactionStatus = successResult && amountMatched ? payment.transactionStatus() : "WAIT_RECONCILE";
+        String glStatus = successResult && amountMatched ? "GL_READY" : "GL_HOLD";
+        String smsStatus = successResult && amountMatched
+                && ("QR".equals(payment.collectionMethod()) || "CREDIT_CARD".equals(payment.collectionMethod()))
+                        ? "SMS_QUEUED"
+                        : "SMS_NOT_REQUIRED";
+
+        String sql = """
+                update apl_payments
+                set payment_status = ?,
+                    paid_amount = ?,
+                    response_code = ?,
+                    reconcile_status = ?,
+                    transaction_status = ?,
+                    gl_status = ?,
+                    sms_status = ?,
+                    processed_at = datetime('now')
+                where payment_id = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, paymentStatus);
+            statement.setDouble(2, paidAmount);
+            statement.setString(3, responseCode);
+            statement.setString(4, reconcileStatus);
+            statement.setString(5, transactionStatus);
+            statement.setString(6, glStatus);
+            statement.setString(7, smsStatus);
+            statement.setString(8, paymentId);
+            statement.executeUpdate();
+            return findAplPayment(paymentId);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to update APL payment status.", exception);
+        }
+    }
+
+    private PaymentChannel paymentChannel(ResultSet resultSet) throws SQLException {
+        return new PaymentChannel(
+                resultSet.getString("channel_code"),
+                resultSet.getString("channel_name"),
+                resultSet.getString("phase"),
+                resultSet.getInt("is_enabled") == 1,
+                resultSet.getInt("allow_apl") == 1,
+                resultSet.getInt("allow_interest") == 1,
+                resultSet.getInt("credit_card_required") == 1,
+                resultSet.getString("remark"));
     }
 
     private AplPolicy aplPolicy(ResultSet resultSet) throws SQLException {
@@ -980,6 +1156,10 @@ final class TicketDatabase {
                 resultSet.getString("transaction_status"),
                 resultSet.getString("gl_status"),
                 resultSet.getString("sms_status"),
+                resultSet.getString("payment_status"),
+                resultSet.getDouble("paid_amount"),
+                resultSet.getString("response_code"),
+                resultSet.getString("processed_at"),
                 resultSet.getString("created_at"));
     }
 
@@ -1554,6 +1734,38 @@ record ImpactAnalysisItem(
         String status) {
 }
 
+record PaymentChannel(
+        String channelCode,
+        String channelName,
+        String phase,
+        boolean isEnabled,
+        boolean allowApl,
+        boolean allowInterest,
+        boolean creditCardRequired,
+        String remark) {
+}
+
+record AplEligibility(
+        String policyNo,
+        boolean eligible,
+        boolean validProduct,
+        boolean validPolicyStatus,
+        boolean validAplStatus,
+        boolean hasInterest,
+        String message) {
+}
+
+record AplPreparedPolicy(
+        String policyNo,
+        String customerName,
+        String appSource,
+        String coreSystem,
+        String agentCode,
+        String exclusiveCode,
+        boolean eligible,
+        double totalAmount) {
+}
+
 record AplPolicy(
         String policyNo,
         String customerName,
@@ -1601,6 +1813,10 @@ record AplPayment(
         String transactionStatus,
         String glStatus,
         String smsStatus,
+        String paymentStatus,
+        double paidAmount,
+        String responseCode,
+        String processedAt,
         String createdAt) {
 }
 

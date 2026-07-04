@@ -123,6 +123,13 @@ Then open:
 http://localhost:8080
 ```
 
+Login:
+
+```text
+User: Supachai.h
+Password: 12345678
+```
+
 Web pages:
 
 - `http://localhost:8080/` - Create Ticket

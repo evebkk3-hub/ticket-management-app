@@ -28,7 +28,14 @@ http://localhost:8080
 Expected result:
 
 - Web app starts on port `8080`
-- Create Ticket page loads
+- Login page loads
+
+Login test user:
+
+```text
+User: Supachai.h
+Password: 12345678
+```
 
 ## 3. Web Smoke Test
 
@@ -50,6 +57,7 @@ http://localhost:8080/social
 Expected result:
 
 - All pages return HTTP `200`
+- Pages redirect to `/login` before sign-in
 - Navigation links are visible
 - APL/RYP Payment Console is visible
 - Roadmap shows Epic R3 with Features, User Stories, and Impact Analysis

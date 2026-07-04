@@ -34,6 +34,11 @@ public class WebMain {
 }
 
 final class WebApplication {
+    private static final String LOGIN_USER = "Supachai.h";
+    private static final String LOGIN_PASSWORD = "12345678";
+    private static final String SESSION_COOKIE = "APP_SESSION";
+    private static final String SESSION_VALUE = "supachai-session";
+
     private final TicketDatabase database = new TicketDatabase();
     private final PantipSearchClient pantipSearchClient = new PantipSearchClient();
     private final SocialSearchClient socialSearchClient = new SocialSearchClient();
@@ -43,6 +48,26 @@ final class WebApplication {
         currentExchange.set(exchange);
         try {
             String path = exchange.getRequestURI().getPath();
+            if (isPost(exchange) && "/login".equals(path)) {
+                login(exchange);
+                return;
+            }
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/login".equals(path)) {
+                render(exchange, loginPage(""));
+                return;
+            }
+            if ("/logout".equals(path)) {
+                logout(exchange);
+                return;
+            }
+            if (!isAuthenticated(exchange)) {
+                if (path.startsWith("/api/")) {
+                    renderJson(exchange, "{\"error\":\"unauthorized\",\"message\":\"login_required\"}", 401);
+                } else {
+                    redirect(exchange, "/login");
+                }
+                return;
+            }
             if (path.startsWith("/api/backlog")) {
                 handleBacklogApi(exchange, path);
                 return;
@@ -123,6 +148,84 @@ final class WebApplication {
             case "/social" -> socialPage();
             default -> createPage();
         };
+    }
+
+    private String loginPage(String error) {
+        String errorHtml = error == null || error.isBlank()
+                ? ""
+                : "<p class='login-error'>" + escape(error) + "</p>";
+        return """
+                <!doctype html>
+                <html lang="th">
+                <head>
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <title>Login</title>
+                  <style>
+                    * { box-sizing: border-box; }
+                    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Tahoma, "Leelawadee UI", "Segoe UI", Arial, sans-serif; background: #eef4f8; color: #172033; }
+                    .login-card { width: min(420px, calc(100vw - 32px)); background: #fff; border: 1px solid #d8dee8; border-radius: 12px; padding: 28px; box-shadow: 0 18px 48px rgba(16,24,40,.12); }
+                    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+                    .brand-mark { width: 38px; height: 38px; border-radius: 8px; display: grid; place-items: center; background: #e0f2fe; color: #0f6b8f; font-weight: 800; }
+                    h1 { margin: 0; font-size: 22px; }
+                    p { margin: 6px 0 0; color: #667085; }
+                    form { display: grid; gap: 14px; margin-top: 18px; }
+                    label { display: grid; gap: 7px; font-weight: 700; color: #334155; }
+                    input { font: inherit; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+                    input:focus { outline: 3px solid #dbeafe; border-color: #60a5fa; }
+                    button { font: inherit; border: 1px solid #0f6b8f; background: #0f6b8f; color: white; padding: 11px 14px; border-radius: 8px; cursor: pointer; font-weight: 800; }
+                    button:hover { background: #0b5875; }
+                    .login-error { color: #b42318; background: #fee4e2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px; margin-top: 14px; }
+                  </style>
+                </head>
+                <body>
+                  <section class="login-card">
+                    <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><p>Sign in to continue</p></div></div>
+                    %s
+                    <form method="post" action="/login">
+                      <label>User<input name="username" autocomplete="username" required></label>
+                      <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
+                      <button type="submit">Login</button>
+                    </form>
+                  </section>
+                </body>
+                </html>
+                """.formatted(errorHtml);
+    }
+
+    private void login(HttpExchange exchange) throws IOException {
+        Map<String, String> form = readForm(exchange);
+        String username = form.getOrDefault("username", "").trim();
+        String password = form.getOrDefault("password", "");
+        if (LOGIN_USER.equals(username) && LOGIN_PASSWORD.equals(password)) {
+            exchange.getResponseHeaders().add("Set-Cookie",
+                    SESSION_COOKIE + "=" + SESSION_VALUE + "; Path=/; HttpOnly; SameSite=Lax");
+            redirect(exchange, "/apl");
+            return;
+        }
+        render(exchange, loginPage("Invalid user or password."), 401);
+    }
+
+    private void logout(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Set-Cookie",
+                SESSION_COOKIE + "=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax");
+        redirect(exchange, "/login");
+    }
+
+    private boolean isAuthenticated(HttpExchange exchange) {
+        List<String> cookies = exchange.getRequestHeaders().get("Cookie");
+        if (cookies == null) {
+            return false;
+        }
+        String expected = SESSION_COOKIE + "=" + SESSION_VALUE;
+        for (String cookieHeader : cookies) {
+            for (String cookie : cookieHeader.split(";")) {
+                if (expected.equals(cookie.trim())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private String createPage() {
@@ -1400,7 +1503,7 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a><a href="/logout">Logout</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>
