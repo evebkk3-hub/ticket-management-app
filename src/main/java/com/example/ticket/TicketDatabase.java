@@ -121,6 +121,45 @@ final class TicketDatabase {
                     )
                     """);
             statement.executeUpdate("""
+                    create table if not exists agile_epics (
+                        epic_code text primary key,
+                        title text not null,
+                        description text not null,
+                        status text not null,
+                        created_at text not null,
+                        updated_at text not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists agile_features (
+                        feature_code text primary key,
+                        epic_code text not null,
+                        feature_no integer not null,
+                        title text not null,
+                        description text not null,
+                        status text not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists agile_user_stories (
+                        story_code text primary key,
+                        feature_code text not null,
+                        story_no integer not null,
+                        title text not null,
+                        description text not null,
+                        status text not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists agile_impact_analysis (
+                        ia_code text primary key,
+                        feature_code text not null,
+                        title text not null,
+                        solution text not null,
+                        status text not null
+                    )
+                    """);
+            statement.executeUpdate("""
                     create table if not exists apl_policies (
                         policy_no text primary key,
                         customer_name text not null,
@@ -172,6 +211,7 @@ final class TicketDatabase {
             ensureColumn(connection, "apl_payments", "payment_type_desc", "text");
             ensureColumn(connection, "apl_payments", "module_type", "text");
             seedAplPaymentProject(connection);
+            seedR3Backlog(connection);
             seedAplPolicies(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
@@ -263,6 +303,179 @@ final class TicketDatabase {
                     9. การออกรายงาน
                     - รายงานการต่อสัญญา
                     """);
+            statement.executeUpdate();
+        }
+    }
+
+    private void seedR3Backlog(Connection connection) throws SQLException {
+        upsertEpic(connection, "R3", "e-RYP รองรับการชำระเบี้ย APL ผ่าน TL Smart / TLI App",
+                "APL Payment for Legacy Policy: structure from Epic to Feature, User Story, and Impact Analysis.",
+                "READY");
+
+        upsertFeature(connection, "R3-F01", "R3", 1, "Policy Eligibility",
+                "Validate product type, policy status, and APL status before allowing payment.", "READY");
+        upsertStory(connection, "US-01", "R3-F01", 1, "Validate Product Type",
+                "As TL Smart/TLI App, I want to validate product type so only eligible products can pay APL premium.", "READY");
+        upsertStory(connection, "US-02", "R3-F01", 2, "Validate Policy Status",
+                "As TL Smart/TLI App, I want to validate policy status before showing payment options.", "READY");
+        upsertStory(connection, "US-03", "R3-F01", 3, "Validate APL Status",
+                "As TL Smart/TLI App, I want to validate APL status including over 90 days and interest conditions.", "READY");
+        upsertImpact(connection, "IA-01", "R3-F01", "Eligibility Impact Analysis",
+                "Add eligibility service and validation rules for product, policy, and APL status. Block unsupported policies before quote/payment.", "READY");
+
+        upsertFeature(connection, "R3-F02", "R3", 2, "Prepare Policy Data",
+                "Prepare policy, agent, and exclusive information for APL payment.", "READY");
+        upsertStory(connection, "US-04", "R3-F02", 4, "Prepare Policy",
+                "As the payment service, I want to prepare policy data from Legacy/InsureMo before calculating payment.", "READY");
+        upsertStory(connection, "US-05", "R3-F02", 5, "Prepare Agent",
+                "As the system, I want to prepare agent information for sales ownership, audit, and notification.", "READY");
+        upsertStory(connection, "US-06", "R3-F02", 6, "Prepare Exclusive",
+                "As the system, I want to prepare exclusive campaign/condition data where applicable.", "READY");
+        upsertImpact(connection, "IA-02", "R3-F02", "Policy Data Preparation Impact Analysis",
+                "Map policy, agent, and exclusive data from source systems into APL payment context before quote creation.", "READY");
+
+        upsertFeature(connection, "R3-F03", "R3", 3, "Premium & Interest",
+                "Get premium, get interest, and calculate total payable amount in realtime.", "READY");
+        upsertStory(connection, "US-07", "R3-F03", 7, "Get Premium",
+                "As TL Smart/TLI App, I want to get life and rider premium separated by period.", "READY");
+        upsertStory(connection, "US-08", "R3-F03", 8, "Get Interest",
+                "As TL Smart/TLI App, I want to get APL interest where policy has interest.", "READY");
+        upsertStory(connection, "US-09", "R3-F03", 9, "Calculate Total",
+                "As TL Smart/TLI App, I want to calculate total premium plus interest in realtime.", "READY");
+        upsertImpact(connection, "IA-03", "R3-F03", "Premium & Interest Impact Analysis",
+                "Expose quote API that separates base premium, rider premium, interest, total premium, and total amount.", "READY");
+
+        upsertFeature(connection, "R3-F04", "R3", 4, "Payment",
+                "Support QR payment, credit card payment, and payment callback/result checking.", "READY");
+        upsertStory(connection, "US-10", "R3-F04", 10, "QR Payment",
+                "As a user, I want to pay APL premium by QR Code.", "READY");
+        upsertStory(connection, "US-11", "R3-F04", 11, "Credit Card",
+                "As a user, I want to pay APL premium by Credit Card when product allows cards.", "READY");
+        upsertStory(connection, "US-12", "R3-F04", 12, "Payment Callback",
+                "As the system, I want to process payment callback/check payment result and avoid duplicate processing.", "READY");
+        upsertImpact(connection, "IA-04", "R3-F04", "Payment Impact Analysis",
+                "Add payment transaction fields such as collectionId, trxId, tempRpNo, references, paymentTypeDesc, and moduleType.", "READY");
+
+        upsertFeature(connection, "R3-F05", "R3", 5, "Receipt",
+                "Generate and print premium and interest receipts.", "READY");
+        upsertStory(connection, "US-13", "R3-F05", 13, "Generate Receipt",
+                "As the system, I want to generate premium receipt and interest receipt numbers after successful payment.", "READY");
+        upsertStory(connection, "US-14", "R3-F05", 14, "Print Receipt",
+                "As operations, I want receipt printing data prepared for premium and general interest receipts.", "READY");
+        upsertImpact(connection, "IA-05", "R3-F05", "Receipt Impact Analysis",
+                "Add receipt generation and printing integration fields, including sorting by interest/no-interest groups.", "READY");
+
+        upsertFeature(connection, "R3-F06", "R3", 6, "Legacy Update",
+                "Update Legacy and InsureMo after successful APL payment.", "READY");
+        upsertStory(connection, "US-15", "R3-F06", 15, "Update Legacy",
+                "As Core System, I want to update Legacy master/transaction renewal data after payment.", "READY");
+        upsertStory(connection, "US-16", "R3-F06", 16, "Update InsureMo",
+                "As Core System, I want to update InsureMo loan transaction after APL payment.", "READY");
+        upsertImpact(connection, "IA-06", "R3-F06", "Legacy/InsureMo Update Impact Analysis",
+                "Route successful payment update to Legacy or InsureMo based on policy core system.", "READY");
+
+        upsertFeature(connection, "R3-F07", "R3", 7, "GL & Reconcile",
+                "Generate GL transaction and reconcile collection payment.", "READY");
+        upsertStory(connection, "US-17", "R3-F07", 17, "GL Transaction",
+                "As accounting, I want GL transaction separated by life/rider and payment period.", "READY");
+        upsertStory(connection, "US-18", "R3-F07", 18, "Reconcile",
+                "As Team Collection, I want auto reconcile for APL payment without separating premium/interest or period.", "READY");
+        upsertImpact(connection, "IA-07", "R3-F07", "GL & Reconcile Impact Analysis",
+                "Set reconcile status, GL readiness, and downstream accounting output after payment success.", "READY");
+
+        upsertFeature(connection, "R3-F08", "R3", 8, "Notification",
+                "Send APL and interest notifications after payment.", "READY");
+        upsertStory(connection, "US-19", "R3-F08", 19, "APL Notification",
+                "As the system, I want to notify customer/agent when APL payment succeeds.", "READY");
+        upsertStory(connection, "US-20", "R3-F08", 20, "Interest Notification",
+                "As the system, I want to notify customer/agent when interest receipt or interest payment applies.", "READY");
+        upsertImpact(connection, "IA-08", "R3-F08", "Notification Impact Analysis",
+                "Queue SMS/notification content for QR and Credit Card payment, including interest-related messages.", "READY");
+    }
+
+    private void upsertEpic(Connection connection, String epicCode, String title, String description, String status)
+            throws SQLException {
+        String sql = """
+                insert into agile_epics (epic_code, title, description, status, created_at, updated_at)
+                values (?, ?, ?, ?, datetime('now'), datetime('now'))
+                on conflict(epic_code) do update set
+                    title = excluded.title,
+                    description = excluded.description,
+                    status = excluded.status,
+                    updated_at = datetime('now')
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, epicCode);
+            statement.setString(2, title);
+            statement.setString(3, description);
+            statement.setString(4, status);
+            statement.executeUpdate();
+        }
+    }
+
+    private void upsertFeature(Connection connection, String featureCode, String epicCode, int featureNo,
+            String title, String description, String status) throws SQLException {
+        String sql = """
+                insert into agile_features (feature_code, epic_code, feature_no, title, description, status)
+                values (?, ?, ?, ?, ?, ?)
+                on conflict(feature_code) do update set
+                    epic_code = excluded.epic_code,
+                    feature_no = excluded.feature_no,
+                    title = excluded.title,
+                    description = excluded.description,
+                    status = excluded.status
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, featureCode);
+            statement.setString(2, epicCode);
+            statement.setInt(3, featureNo);
+            statement.setString(4, title);
+            statement.setString(5, description);
+            statement.setString(6, status);
+            statement.executeUpdate();
+        }
+    }
+
+    private void upsertStory(Connection connection, String storyCode, String featureCode, int storyNo,
+            String title, String description, String status) throws SQLException {
+        String sql = """
+                insert into agile_user_stories (story_code, feature_code, story_no, title, description, status)
+                values (?, ?, ?, ?, ?, ?)
+                on conflict(story_code) do update set
+                    feature_code = excluded.feature_code,
+                    story_no = excluded.story_no,
+                    title = excluded.title,
+                    description = excluded.description,
+                    status = excluded.status
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, storyCode);
+            statement.setString(2, featureCode);
+            statement.setInt(3, storyNo);
+            statement.setString(4, title);
+            statement.setString(5, description);
+            statement.setString(6, status);
+            statement.executeUpdate();
+        }
+    }
+
+    private void upsertImpact(Connection connection, String iaCode, String featureCode, String title,
+            String solution, String status) throws SQLException {
+        String sql = """
+                insert into agile_impact_analysis (ia_code, feature_code, title, solution, status)
+                values (?, ?, ?, ?, ?)
+                on conflict(ia_code) do update set
+                    feature_code = excluded.feature_code,
+                    title = excluded.title,
+                    solution = excluded.solution,
+                    status = excluded.status
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, iaCode);
+            statement.setString(2, featureCode);
+            statement.setString(3, title);
+            statement.setString(4, solution);
+            statement.setString(5, status);
             statement.executeUpdate();
         }
     }
@@ -417,6 +630,137 @@ final class TicketDatabase {
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to load project detail.", exception);
+        }
+    }
+
+    List<EpicItem> findEpics() {
+        String sql = """
+                select epic_code, title, description, status, updated_at
+                from agile_epics
+                order by epic_code
+                """;
+        List<EpicItem> epics = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                epics.add(new EpicItem(
+                        resultSet.getString("epic_code"),
+                        resultSet.getString("title"),
+                        resultSet.getString("description"),
+                        resultSet.getString("status"),
+                        resultSet.getString("updated_at")));
+            }
+            return epics;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load epics.", exception);
+        }
+    }
+
+    EpicItem findEpic(String epicCode) {
+        String sql = """
+                select epic_code, title, description, status, updated_at
+                from agile_epics
+                where epic_code = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, epicCode);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return new EpicItem(
+                        resultSet.getString("epic_code"),
+                        resultSet.getString("title"),
+                        resultSet.getString("description"),
+                        resultSet.getString("status"),
+                        resultSet.getString("updated_at"));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load epic.", exception);
+        }
+    }
+
+    List<FeatureItem> findFeatures(String epicCode) {
+        String sql = """
+                select feature_code, epic_code, feature_no, title, description, status
+                from agile_features
+                where epic_code = ?
+                order by feature_no
+                """;
+        List<FeatureItem> features = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, epicCode);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    features.add(new FeatureItem(
+                            resultSet.getString("feature_code"),
+                            resultSet.getString("epic_code"),
+                            resultSet.getInt("feature_no"),
+                            resultSet.getString("title"),
+                            resultSet.getString("description"),
+                            resultSet.getString("status")));
+                }
+            }
+            return features;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load features.", exception);
+        }
+    }
+
+    List<UserStoryItem> findUserStories(String featureCode) {
+        String sql = """
+                select story_code, feature_code, story_no, title, description, status
+                from agile_user_stories
+                where feature_code = ?
+                order by story_no
+                """;
+        List<UserStoryItem> stories = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, featureCode);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    stories.add(new UserStoryItem(
+                            resultSet.getString("story_code"),
+                            resultSet.getString("feature_code"),
+                            resultSet.getInt("story_no"),
+                            resultSet.getString("title"),
+                            resultSet.getString("description"),
+                            resultSet.getString("status")));
+                }
+            }
+            return stories;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load user stories.", exception);
+        }
+    }
+
+    ImpactAnalysisItem findImpactAnalysis(String featureCode) {
+        String sql = """
+                select ia_code, feature_code, title, solution, status
+                from agile_impact_analysis
+                where feature_code = ?
+                order by ia_code
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, featureCode);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (!resultSet.next()) {
+                    return null;
+                }
+                return new ImpactAnalysisItem(
+                        resultSet.getString("ia_code"),
+                        resultSet.getString("feature_code"),
+                        resultSet.getString("title"),
+                        resultSet.getString("solution"),
+                        resultSet.getString("status"));
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load impact analysis.", exception);
         }
     }
 
@@ -1174,6 +1518,40 @@ record ProjectDetail(
         String requirements,
         String createdAt,
         String updatedAt) {
+}
+
+record EpicItem(
+        String epicCode,
+        String title,
+        String description,
+        String status,
+        String updatedAt) {
+}
+
+record FeatureItem(
+        String featureCode,
+        String epicCode,
+        int featureNo,
+        String title,
+        String description,
+        String status) {
+}
+
+record UserStoryItem(
+        String storyCode,
+        String featureCode,
+        int storyNo,
+        String title,
+        String description,
+        String status) {
+}
+
+record ImpactAnalysisItem(
+        String iaCode,
+        String featureCode,
+        String title,
+        String solution,
+        String status) {
 }
 
 record AplPolicy(

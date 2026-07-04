@@ -1,0 +1,235 @@
+Payment Flow Summary
+Source images:
+- [NASA_R2] ALL_PaymentMethod-[SP13] Logic_ CheckPaymentResult.jpg
+- [NASA_R2] ALL_PaymentMethod-[SP13] Logic_ CheckPaymentResult (1).jpg
+
+1. Purpose
+
+This flow describes the logic for checking payment result and updating payment
+status for an application/payment transaction.
+
+Main API shown in the diagram:
+
+PUT /ms-sales/v1/applications/payment-status
+
+The flow is mainly controlled by ms-sale, while ms-payment is used to check or
+process payment transaction data. After successful payment, downstream systems
+such as Core, transaction logs, GL, receipt, and notification/SMS can be updated.
+
+2. Main Systems
+
+- Frontend / calling client
+  Sends request to check or update payment status.
+
+- ms-sale
+  Main orchestration service. It validates the request, loads application/payment
+  data, decides the next step, and updates application/payment status.
+
+- ms-payment
+  Payment service. It stores and returns payment transaction information such as
+  collection ID, transaction ID, reference values, amount, payment type, QR/credit
+  card data, and payment result.
+
+- Core system
+  Receives successful payment update when payment has been confirmed.
+
+- Database
+  Stores application, payment transaction, status, logs, and reconciliation data.
+
+3. High-Level Flow
+
+1. Client calls the payment-status API.
+2. ms-sale validates request data.
+3. ms-sale checks application/payment information.
+4. ms-sale checks whether payment transaction exists.
+5. ms-sale checks whether this payment has already been processed.
+6. If already processed, return current status to caller.
+7. If not processed, ms-sale checks payment result from ms-payment.
+8. ms-payment returns payment transaction/result.
+9. ms-sale evaluates payment result.
+10. If payment is successful, ms-sale updates application/payment status.
+11. ms-sale calls downstream update process, such as Core transaction update.
+12. ms-sale writes transaction/activity logs.
+13. ms-sale sends notification/SMS if required.
+14. ms-sale returns final response to caller.
+
+4. Important Decision Points
+
+- Is request valid?
+- Does application/payment record exist?
+- Does payment transaction exist?
+- Has this payment already been processed?
+- Is payment result successful?
+- Does the amount match expected premium/interest?
+- Should the transaction be reconciled automatically?
+- Should Core be updated?
+- Should GL transaction be generated?
+- Should SMS or notification be sent?
+- Should the response be success, pending, failed, or error?
+
+5. Success Case
+
+When payment result is successful:
+
+1. Payment transaction is found.
+2. Payment result is confirmed as paid/success.
+3. Paid amount is checked against expected amount.
+4. Payment/application status is updated.
+5. Reconcile status is set to matched when the amount is correct.
+6. Core transaction is updated.
+7. Receipt data is created or prepared.
+8. GL transaction status is updated or marked ready.
+9. SMS/notification is queued if payment method requires it.
+10. API returns success response.
+
+6. Failed or Pending Case
+
+When payment result is not successful:
+
+1. Payment result is checked.
+2. If payment is pending, status remains pending/waiting.
+3. If payment failed, status is updated as failed.
+4. Core success update is not performed.
+5. Error or failed result is logged.
+6. Caller receives failed/pending response.
+7. User may retry payment depending on business rule.
+
+7. Duplicate or Already Processed Case
+
+If the payment transaction has already been processed:
+
+1. System does not process the same payment again.
+2. Existing payment status is loaded.
+3. Existing transaction/result is returned.
+4. This prevents duplicate Core update, duplicate receipt, duplicate GL, and
+   duplicate SMS.
+
+8. Payment Transaction Fields from Data Dictionary
+
+The related ms_payment / payment_transaction fields include:
+
+- id
+- application_id
+- collection_id
+- trx_id
+- uuid
+- reference_no
+- reference_one
+- reference_two
+- reference_three
+- temp_no
+- amount
+- response_code
+- terminal_id
+- payment_type
+- payment_type_desc
+- pay_date
+- payment_code
+- fee
+- total_amount
+- qr_code
+- qr_create_date
+- qr_expire_date
+- slip_file
+- module_type
+- credit_card_no
+- cheque_bank_code
+- cheque_number
+- cheque_date
+- cheque_amount
+- create_time
+- create_user_code
+- last_update
+- update_user_code
+
+For RYP/APL payment, the important mapped fields are:
+
+- policy_no
+- temp_rp_no
+- pay_period
+- reference_one
+- reference_two
+- reference_three
+- amount
+- collection_id
+- trx_id
+- payment_type_desc
+- module_type
+
+9. Mapping to Current APL/RYP Demo App
+
+The current app implements the payment creation side:
+
+- Page: /apl
+- GET /api/apl/policies
+- GET /api/apl/policies/{policyNo}
+- GET /api/apl/quote?policyNo=APL100001
+- GET /api/apl/payments
+- POST /api/apl/payments
+
+Current implemented behavior:
+
+- Load sample Legacy and InsureMo policies.
+- Calculate base premium, rider premium, interest, total premium, and total due.
+- Support QR and Credit Card payment.
+- Block Credit Card when policy/product is not eligible.
+- Create payment transaction.
+- Generate collectionId, trxId, tempRpNo.
+- Generate referenceOne, referenceTwo, referenceThree.
+- Generate premium receipt number.
+- Generate interest receipt number when interest exists.
+- Set reconcileStatus = MATCHED.
+- Set transactionStatus = Legacy_UPDATED or InsureMo_UPDATED.
+- Set glStatus = GL_READY.
+- Set smsStatus = SMS_QUEUED for QR/Credit Card.
+
+10. Recommended Next API to Match the Diagram
+
+To match the diagram more closely, add a payment result checking endpoint:
+
+PUT /api/apl/applications/payment-status
+
+Recommended request fields:
+
+- policyNo
+- paymentId
+- collectionId
+- trxId
+- referenceOne
+- referenceTwo
+- paymentResult
+- responseCode
+- paidAmount
+
+Recommended response fields:
+
+- paymentId
+- policyNo
+- paymentStatus
+- reconcileStatus
+- transactionStatus
+- glStatus
+- smsStatus
+- message
+
+11. Suggested Processing for PUT /api/apl/applications/payment-status
+
+1. Validate request.
+2. Find payment by paymentId, collectionId, trxId, or referenceOne.
+3. If payment is not found, return not found.
+4. If payment is already processed, return existing status.
+5. Compare paidAmount with expected totalAmount.
+6. If amount matches and paymentResult is success:
+   - Set payment status to SUCCESS.
+   - Set reconcile status to MATCHED.
+   - Update Core transaction.
+   - Mark GL ready.
+   - Queue SMS.
+7. If amount does not match:
+   - Set reconcile status to UNMATCHED.
+   - Keep transaction pending for manual reconcile.
+8. If payment failed:
+   - Set payment status to FAILED.
+   - Do not update Core as success.
+9. Return final status to caller.
+

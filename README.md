@@ -9,6 +9,7 @@ The application supports:
 - Lightweight Java web application
 - SQLite storage
 - Project requirement view
+- Epic/Feature/User Story/Impact Analysis roadmap
 - APL/RYP payment app and API
 - Ticket list view
 - Pantip keyword monitor
@@ -73,6 +74,7 @@ At minimum, verify:
 - Build passes
 - Web app starts
 - Projects page opens
+- Roadmap page opens
 - APL/RYP Payment page and API work
 - Create Ticket works
 - List View detail page opens
@@ -125,6 +127,8 @@ Web pages:
 
 - `http://localhost:8080/` - Create Ticket
 - `http://localhost:8080/apl` - APL/RYP Payment Console
+- `http://localhost:8080/roadmap` - Epic roadmap
+- `http://localhost:8080/roadmap/R3` - R3 feature/story/impact analysis
 - `http://localhost:8080/projects` - Projects
 - `http://localhost:8080/projects/APL-RYP-PAYMENT` - APL/RYP payment requirement
 - `http://localhost:8080/tickets` - List View
@@ -258,6 +262,10 @@ Tables are created automatically on startup:
 
 - `tickets`
 - `projects`
+- `agile_epics`
+- `agile_features`
+- `agile_user_stories`
+- `agile_impact_analysis`
 - `apl_policies`
 - `apl_payments`
 - `ticket_history`
@@ -305,6 +313,39 @@ Example API payment body:
 ```text
 policyNo=APL100001&collectionMethod=QR
 ```
+
+## R3 Roadmap Workflow
+
+The roadmap page stores the Epic -> Feature -> User Story -> Impact Analysis structure for:
+
+```text
+R3 : e-RYP รองรับการชำระเบี้ย APL ผ่าน TL Smart / TLI App
+```
+
+Pages:
+
+```text
+http://localhost:8080/roadmap
+http://localhost:8080/roadmap/R3
+```
+
+Backlog API:
+
+```text
+GET /api/backlog/epics
+GET /api/backlog/epics/R3
+```
+
+Seeded structure:
+
+- Feature 1: Policy Eligibility
+- Feature 2: Prepare Policy Data
+- Feature 3: Premium & Interest
+- Feature 4: Payment
+- Feature 5: Receipt
+- Feature 6: Legacy Update
+- Feature 7: GL & Reconcile
+- Feature 8: Notification
 
 ## Pantip Monitor Workflow
 

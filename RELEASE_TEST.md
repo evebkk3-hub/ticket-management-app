@@ -37,6 +37,8 @@ Check these URLs:
 ```text
 http://localhost:8080/
 http://localhost:8080/apl
+http://localhost:8080/roadmap
+http://localhost:8080/roadmap/R3
 http://localhost:8080/projects
 http://localhost:8080/projects/APL-RYP-PAYMENT
 http://localhost:8080/tickets
@@ -50,6 +52,7 @@ Expected result:
 - All pages return HTTP `200`
 - Navigation links are visible
 - APL/RYP Payment Console is visible
+- Roadmap shows Epic R3 with Features, User Stories, and Impact Analysis
 - Projects page shows the APL/RYP payment requirement
 - List/feed pages show pagination when there are more than 10 records
 - Thai text displays correctly
@@ -103,7 +106,28 @@ Expected result:
 - Core transaction status and GL status are updated
 - QR/Credit Card payments queue SMS
 
-## 6. Pantip Monitor Test
+## 6. R3 Roadmap Test
+
+1. Open `Roadmap`.
+2. Open `R3`.
+3. Confirm 8 features are visible.
+4. Confirm `US-01` through `US-20` are visible.
+5. Confirm `IA-01` through `IA-08` are visible.
+6. Call API:
+
+   ```text
+   GET /api/backlog/epics
+   GET /api/backlog/epics/R3
+   ```
+
+Expected result:
+
+- Epic R3 is returned
+- Features 1-8 are returned
+- User Stories 1-20 are nested under their features
+- Impact Analysis items IA-01 to IA-08 are returned
+
+## 7. Pantip Monitor Test
 
 1. Open `Pantip Monitor`.
 2. Add a keyword.
@@ -118,7 +142,7 @@ Expected result:
 - Created tickets link back to imported topics
 - Duplicate ticket action opens the existing ticket, shows Source References, and records history
 
-## 7. Social Monitor Test
+## 8. Social Monitor Test
 
 1. Open `Social Monitor`.
 2. Select `PANTIP` or `REDDIT`.
@@ -135,7 +159,7 @@ Expected result:
 - Duplicate ticket action opens the existing ticket, shows Source References, and records history
 - Reddit search does not fail with HTTP `403`
 
-## 8. Database Check
+## 9. Database Check
 
 Database path:
 
@@ -147,6 +171,10 @@ Tables expected:
 
 - `tickets`
 - `projects`
+- `agile_epics`
+- `agile_features`
+- `agile_user_stories`
+- `agile_impact_analysis`
 - `apl_policies`
 - `apl_payments`
 - `keywords`
@@ -159,6 +187,7 @@ Release only when:
 
 - Build passes
 - Web pages return HTTP `200`
+- R3 roadmap hierarchy and API work
 - APL/RYP payment app and API work
 - Ticket create/detail/assign/follow-up/close/private-message works
 - Duplicate feed ticket actions reuse existing tickets and preserve source references/history

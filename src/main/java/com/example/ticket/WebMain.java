@@ -43,6 +43,10 @@ final class WebApplication {
         currentExchange.set(exchange);
         try {
             String path = exchange.getRequestURI().getPath();
+            if (path.startsWith("/api/backlog")) {
+                handleBacklogApi(exchange, path);
+                return;
+            }
             if (path.startsWith("/api/apl")) {
                 handleAplApi(exchange, path);
                 return;
@@ -107,8 +111,12 @@ final class WebApplication {
         if (path.matches("/projects/[A-Za-z0-9-]+")) {
             return projectDetailPage(path.substring("/projects/".length()));
         }
+        if (path.matches("/roadmap/[A-Za-z0-9-]+")) {
+            return epicDetailPage(path.substring("/roadmap/".length()));
+        }
         return switch (path) {
             case "/apl" -> aplPage();
+            case "/roadmap" -> roadmapPage();
             case "/projects" -> projectsPage();
             case "/tickets" -> ticketsPage();
             case "/pantip" -> pantipPage();
@@ -225,6 +233,126 @@ final class WebApplication {
                 escape(project.background()),
                 escape(project.requirements()));
         return layout(project.title(), html);
+    }
+
+    private String roadmapPage() {
+        StringBuilder rows = new StringBuilder();
+        for (EpicItem epic : database.findEpics()) {
+            List<FeatureItem> features = database.findFeatures(epic.epicCode());
+            int storyCount = 0;
+            for (FeatureItem feature : features) {
+                storyCount += database.findUserStories(feature.featureCode()).size();
+            }
+            rows.append("<tr>")
+                    .append("<td><a href='/roadmap/").append(escapeAttribute(epic.epicCode())).append("'>")
+                    .append(escape(epic.epicCode())).append("</a></td>")
+                    .append("<td><a href='/roadmap/").append(escapeAttribute(epic.epicCode())).append("'>")
+                    .append(escape(epic.title())).append("</a><p>")
+                    .append(escape(epic.description())).append("</p></td>")
+                    .append("<td>").append(features.size()).append("</td>")
+                    .append("<td>").append(storyCount).append("</td>")
+                    .append("<td><span class='status'>").append(escape(epic.status())).append("</span></td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='5'>No roadmap items yet.</td></tr>");
+        }
+
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Epic Roadmap</h2>
+                    <a class="button" href="/roadmap/R3">Open R3</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>Epic</th><th>Title</th><th>Features</th><th>User Stories</th><th>Status</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                """.formatted(rows);
+        return layout("Epic Roadmap", html);
+    }
+
+    private String epicDetailPage(String epicCode) {
+        EpicItem epic = database.findEpic(epicCode);
+        if (epic == null) {
+            return layout("Epic Not Found", """
+                    <section class="panel">
+                      <h2>Epic not found</h2>
+                      <a class="button" href="/roadmap">Back to Roadmap</a>
+                    </section>
+                """);
+        }
+
+        StringBuilder featureSections = new StringBuilder();
+        for (FeatureItem feature : database.findFeatures(epic.epicCode())) {
+            StringBuilder storyRows = new StringBuilder();
+            for (UserStoryItem story : database.findUserStories(feature.featureCode())) {
+                storyRows.append("<tr>")
+                        .append("<td>").append(escape(story.storyCode())).append("</td>")
+                        .append("<td>").append(escape(story.title())).append("<p>")
+                        .append(escape(story.description())).append("</p></td>")
+                        .append("<td><span class='status'>").append(escape(story.status())).append("</span></td>")
+                        .append("</tr>");
+            }
+            ImpactAnalysisItem impact = database.findImpactAnalysis(feature.featureCode());
+            featureSections.append("""
+                    <section class="panel" id="%s">
+                      <div class="section-title">
+                        <h2>Feature %d : %s</h2>
+                        <span class="status">%s</span>
+                      </div>
+                      <p class="muted">%s</p>
+                      <table>
+                        <thead><tr><th>User Story</th><th>Description</th><th>Status</th></tr></thead>
+                        <tbody>%s</tbody>
+                      </table>
+                      <div class="impact-box">
+                        <strong>%s</strong>
+                        <p>%s</p>
+                      </div>
+                    </section>
+                    """.formatted(
+                    escapeAttribute(feature.featureCode()),
+                    feature.featureNo(),
+                    escape(feature.title()),
+                    escape(feature.status()),
+                    escape(feature.description()),
+                    storyRows,
+                    escape(impact == null ? "Impact Analysis" : impact.iaCode() + " : " + impact.title()),
+                    escape(impact == null ? "No impact analysis recorded." : impact.solution())));
+        }
+
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>%s : %s</h2>
+                    <a class="button" href="/roadmap">Back to Roadmap</a>
+                  </div>
+                  <div class="detail-grid">
+                    <div><strong>Epic</strong><span>%s</span></div>
+                    <div><strong>Status</strong><span class="status">%s</span></div>
+                    <div><strong>Updated At</strong><span>%s</span></div>
+                    <div><strong>Requirement</strong><span>APL Payment for Legacy Policy</span></div>
+                  </div>
+                  <p class="muted">%s</p>
+                </section>
+                %s
+                <section class="panel">
+                  <h2>Backlog API</h2>
+                  <pre>GET /api/backlog/epics
+GET /api/backlog/epics/%s</pre>
+                </section>
+                """.formatted(
+                escape(epic.epicCode()),
+                escape(epic.title()),
+                escape(epic.epicCode()),
+                escape(epic.status()),
+                escape(epic.updatedAt()),
+                escape(epic.description()),
+                featureSections,
+                escape(epic.epicCode()));
+        return layout(epic.epicCode() + " Roadmap", html);
     }
 
     private String aplPage() {
@@ -900,6 +1028,37 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
         renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
     }
 
+    private void handleBacklogApi(HttpExchange exchange, String path) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            renderJson(exchange, "{\"error\":\"method_not_allowed\"}", 405);
+            return;
+        }
+        if ("/api/backlog/epics".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<EpicItem> epics = database.findEpics();
+            for (int i = 0; i < epics.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(epicJson(epics.get(i), false));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if (path.matches("/api/backlog/epics/[A-Za-z0-9-]+")) {
+            String epicCode = path.substring("/api/backlog/epics/".length());
+            EpicItem epic = database.findEpic(epicCode);
+            if (epic == null) {
+                renderJson(exchange, "{\"error\":\"epic_not_found\"}", 404);
+                return;
+            }
+            renderJson(exchange, epicJson(epic, true), 200);
+            return;
+        }
+        renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
+    }
+
     private TicketWorkflow workflow() {
         TicketWorkflow workflow = new TicketWorkflow();
         workflow.setNextTicketId(database.nextTicketId());
@@ -1060,6 +1219,74 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 + "}";
     }
 
+    private String epicJson(EpicItem epic, boolean includeChildren) {
+        StringBuilder json = new StringBuilder("{")
+                .append(jsonField("epicCode", epic.epicCode())).append(",")
+                .append(jsonField("title", epic.title())).append(",")
+                .append(jsonField("description", epic.description())).append(",")
+                .append(jsonField("status", epic.status())).append(",")
+                .append(jsonField("updatedAt", epic.updatedAt()));
+        if (includeChildren) {
+            json.append(",\"features\":[");
+            List<FeatureItem> features = database.findFeatures(epic.epicCode());
+            for (int i = 0; i < features.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(featureJson(features.get(i)));
+            }
+            json.append("]");
+        }
+        json.append("}");
+        return json.toString();
+    }
+
+    private String featureJson(FeatureItem feature) {
+        StringBuilder json = new StringBuilder("{")
+                .append(jsonField("featureCode", feature.featureCode())).append(",")
+                .append(jsonField("epicCode", feature.epicCode())).append(",")
+                .append("\"featureNo\":").append(feature.featureNo()).append(",")
+                .append(jsonField("title", feature.title())).append(",")
+                .append(jsonField("description", feature.description())).append(",")
+                .append(jsonField("status", feature.status())).append(",")
+                .append("\"userStories\":[");
+        List<UserStoryItem> stories = database.findUserStories(feature.featureCode());
+        for (int i = 0; i < stories.size(); i++) {
+            if (i > 0) {
+                json.append(",");
+            }
+            json.append(userStoryJson(stories.get(i)));
+        }
+        json.append("]");
+        ImpactAnalysisItem impact = database.findImpactAnalysis(feature.featureCode());
+        if (impact != null) {
+            json.append(",\"impactAnalysis\":").append(impactJson(impact));
+        }
+        json.append("}");
+        return json.toString();
+    }
+
+    private String userStoryJson(UserStoryItem story) {
+        return "{"
+                + jsonField("storyCode", story.storyCode()) + ","
+                + jsonField("featureCode", story.featureCode()) + ","
+                + "\"storyNo\":" + story.storyNo() + ","
+                + jsonField("title", story.title()) + ","
+                + jsonField("description", story.description()) + ","
+                + jsonField("status", story.status())
+                + "}";
+    }
+
+    private String impactJson(ImpactAnalysisItem impact) {
+        return "{"
+                + jsonField("iaCode", impact.iaCode()) + ","
+                + jsonField("featureCode", impact.featureCode()) + ","
+                + jsonField("title", impact.title()) + ","
+                + jsonField("solution", impact.solution()) + ","
+                + jsonField("status", impact.status())
+                + "}";
+    }
+
     private String jsonField(String key, String value) {
         return "\"" + key + "\":\"" + jsonEscape(value) + "\"";
     }
@@ -1149,6 +1376,8 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                     .message p { margin: 8px 0 0; white-space: pre-wrap; }
                     .message.customer { background: #ecfdf5; margin-left: auto; border-color: #bbf7d0; }
                     .message.agent { background: #f8fafc; }
+                    .impact-box { margin-top: 14px; padding: 14px; border: 1px solid #bae6fd; border-radius: 10px; background: #f0f9ff; }
+                    .impact-box p { margin: 7px 0 0; color: #475569; }
                     .detail-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
                     .side-stack { position: sticky; top: 96px; }
                     .loading-overlay { position: fixed; inset: 0; z-index: 99; display: none; align-items: center; justify-content: center; background: rgba(15, 23, 42, .36); backdrop-filter: blur(3px); }
@@ -1171,7 +1400,7 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>
