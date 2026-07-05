@@ -93,16 +93,35 @@ Expected result:
 ## 5. APL/RYP Payment Test
 
 1. Open `APL/RYP Payment Console`.
-2. Confirm sample policies show Legacy and InsureMo.
-3. Create a QR payment for `APL100001`.
-4. Create a Credit Card payment for a policy that allows cards.
-5. Confirm Credit Card is blocked or disabled for ineligible policy.
-6. Call API:
+2. Confirm payment channels show Phase 1 QR/Credit Card and Phase 2 Direct Debit/Cheque.
+3. Confirm sample policies show Legacy and InsureMo with eligibility and prepared data.
+4. Create a QR payment for `APL100001`.
+5. Create a Credit Card payment for a policy that allows cards.
+6. Confirm Credit Card is blocked or disabled for ineligible policy.
+7. Click `Success` for a payment and confirm callback status is updated.
+8. Click `Mismatch` for a payment and confirm reconcile/GL are held.
+9. Open `Receipt and Printing`, `Collection Reconcile`, `GL Transactions`, and `Renewal Payment Report`.
+10. Confirm a printable matched receipt.
+11. Approve one reconcile item and confirm GL status is released.
+12. Call API:
 
    ```text
-   GET /api/apl/policies
-   GET /api/apl/quote?policyNo=APL100001
-   POST /api/apl/payments
+   GET /api/v1/apl/policies
+   GET /api/v1/apl/quote?policyNo=APL100001
+   GET /api/v1/apl/payment-channels
+   GET /api/v1/apl/eligibility?policyNo=APL100001
+   GET /api/v1/apl/prepare?policyNo=APL100001
+   POST /api/v1/apl/payments
+   POST /api/v1/apl/applications/payment-status
+   GET /api/v1/apl/receipts
+   POST /api/v1/apl/receipts/{receiptNo}/confirm-print
+   GET /api/v1/apl/reconcile/items
+   POST /api/v1/apl/reconcile/{paymentId}/approve
+   GET /api/v1/apl/gl/transactions
+   GET /api/v1/apl/reports/renewals
+   GET /api/v1/config/payment-method-product-rules
+   GET /api/v1/config/due-date-status-rules
+   GET /api/v1/config/premium-component-rules
    ```
 
 Expected result:
@@ -110,9 +129,13 @@ Expected result:
 - Premium, rider, interest, and total due are calculated
 - Payment transaction includes collection/trx/reference fields
 - Premium and interest receipt numbers are generated
-- Reconcile status is `MATCHED`
-- Core transaction status and GL status are updated
+- Matched callback sets reconcile status to `MATCHED`
+- Unmatched callback sets reconcile status to `UNMATCHED` and GL status to `GL_HOLD`
+- Core transaction status and GL status are shown
 - QR/Credit Card payments queue SMS
+- Receipt, reconcile, GL, and renewal report pages render from saved payment data
+- Payment method/product matrix is config-driven; CreditCard (KBANK) is blocked for non-OL products
+- Due date status and premium component mappings are returned from config APIs
 
 ## 6. R3 Roadmap Test
 

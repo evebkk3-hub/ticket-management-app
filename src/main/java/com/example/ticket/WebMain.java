@@ -68,16 +68,33 @@ final class WebApplication {
                 }
                 return;
             }
-            if (path.startsWith("/api/backlog")) {
-                handleBacklogApi(exchange, path);
+            String apiPath = normalizeApiPath(path);
+            if (apiPath.startsWith("/api/backlog")) {
+                handleBacklogApi(exchange, apiPath);
                 return;
             }
-            if (path.startsWith("/api/apl")) {
-                handleAplApi(exchange, path);
+            if (apiPath.startsWith("/api/config")) {
+                handleConfigApi(exchange, apiPath);
+                return;
+            }
+            if (apiPath.startsWith("/api/apl")) {
+                handleAplApi(exchange, apiPath);
                 return;
             }
             if (isPost(exchange) && "/apl/payments".equals(path)) {
                 createAplPayment(exchange);
+                return;
+            }
+            if (isPost(exchange) && "/apl/payment-status".equals(path)) {
+                updateAplPaymentStatus(exchange);
+                return;
+            }
+            if (isPost(exchange) && "/apl/receipts/confirm-print".equals(path)) {
+                confirmAplReceiptPrint(exchange);
+                return;
+            }
+            if (isPost(exchange) && "/apl/reconcile/approve".equals(path)) {
+                approveAplReconcile(exchange);
                 return;
             }
             if (isPost(exchange) && "/tickets".equals(path)) {
@@ -141,6 +158,10 @@ final class WebApplication {
         }
         return switch (path) {
             case "/apl" -> aplPage();
+            case "/apl/receipts" -> aplReceiptsPage();
+            case "/apl/reconcile" -> aplReconcilePage();
+            case "/apl/gl" -> aplGlPage();
+            case "/apl/reports" -> aplReportsPage();
             case "/roadmap" -> roadmapPage();
             case "/projects" -> projectsPage();
             case "/tickets" -> ticketsPage();
@@ -459,19 +480,55 @@ GET /api/backlog/epics/%s</pre>
     }
 
     private String aplPage() {
+        StringBuilder channelRows = new StringBuilder();
+        for (PaymentChannel channel : database.findPaymentChannels()) {
+            channelRows.append("<tr>")
+                    .append("<td><strong>").append(escape(channel.channelCode())).append("</strong><p>")
+                    .append(escape(channel.channelName())).append("</p></td>")
+                    .append("<td>").append(escape(channel.phase())).append("</td>")
+                    .append("<td><span class='status ").append(channel.isEnabled() ? "ok" : "hold").append("'>")
+                    .append(channel.isEnabled() ? "ENABLED" : "DESIGN PHASE").append("</span></td>")
+                    .append("<td>").append(channel.allowInterest() ? "Premium + Interest" : "Premium only").append("<p>")
+                    .append(channel.creditCardRequired() ? "Credit card product rule required" : "No card rule").append("</p></td>")
+                    .append("<td>").append(escape(channel.remark())).append("</td>")
+                    .append("</tr>");
+        }
+
+        StringBuilder methodRuleRows = new StringBuilder();
+        for (PaymentMethodProductRule rule : database.findPaymentMethodProductRules()) {
+            methodRuleRows.append("<tr>")
+                    .append("<td>").append(escape(rule.channelCode())).append("</td>")
+                    .append("<td>").append(escape(rule.productType())).append("</td>")
+                    .append("<td><span class='status ok'>").append(rule.supportMultiPeriodPayment() ? "TRUE" : "FALSE").append("</span></td>")
+                    .append("<td><span class='status ").append(rule.isSupported() ? "ok" : "danger-soft").append("'>")
+                    .append(rule.isSupported() ? "TRUE" : "FALSE").append("</span></td>")
+                    .append("<td>").append(escape(nullToBlank(rule.dependencyApi()))).append("<p>")
+                    .append(escape(rule.remark())).append("</p></td>")
+                    .append("</tr>");
+        }
+
         StringBuilder policyRows = new StringBuilder();
         for (AplPolicy policy : database.findAplPolicies()) {
             AplQuote quote = database.quoteAplPayment(policy.policyNo());
+            AplEligibility eligibility = database.checkAplEligibility(policy.policyNo());
+            AplPreparedPolicy prepared = database.prepareAplPolicy(policy.policyNo());
+            DueDateStatus dueDateStatus = database.evaluateDueDateStatus(policy.dueDate());
+            String premiumComponents = premiumComponentSummary(policy.policyNo());
             policyRows.append("<tr>")
                     .append("<td><strong>").append(escape(policy.policyNo())).append("</strong><p>")
                     .append(escape(policy.customerName())).append("</p></td>")
-                    .append("<td>").append(escape(policy.appSource())).append("</td>")
-                    .append("<td>").append(escape(policy.coreSystem())).append("</td>")
-                    .append("<td>").append(policy.aplDays()).append(" days</td>")
-                    .append("<td>").append(money(quote.totalPremium())).append("<p>Interest ")
+                    .append("<td>").append(escape(policy.appSource())).append("<p>")
+                    .append(escape(policy.coreSystem())).append(" / ").append(escape(policy.productType())).append("</p></td>")
+                    .append("<td>").append(policy.aplDays()).append(" days<p>")
+                    .append(escape(policy.dueDate())).append(" / ").append(escape(dueDateStatus.statusCode())).append(" ")
+                    .append(escape(dueDateStatus.description())).append("</p></td>")
+                    .append("<td>").append(premiumComponents).append("<p>Interest ")
                     .append(money(quote.interestAmount())).append("</p></td>")
                     .append("<td>").append(money(quote.totalAmount())).append("</td>")
-                    .append("<td><span class='status'>").append(escape(policy.status())).append("</span></td>")
+                    .append("<td><span class='status ").append(eligibility.eligible() ? "ok" : "danger-soft").append("'>")
+                    .append(eligibility.eligible() ? "ELIGIBLE" : "BLOCKED").append("</span><p>")
+                    .append(escape(prepared == null ? "" : prepared.agentCode())).append(" / ")
+                    .append(escape(prepared == null ? "" : prepared.exclusiveCode())).append("</p></td>")
                     .append("<td class='action-cell'>")
                     .append(paymentForm(policy.policyNo(), "QR", "QR"))
                     .append(policy.allowCreditCard()
@@ -483,9 +540,14 @@ GET /api/backlog/epics/%s</pre>
 
         StringBuilder paymentRows = new StringBuilder();
         for (AplPayment payment : database.findAplPayments()) {
+            String printGroup = payment.interestAmount() > 0 ? "INTEREST" : "NO_INTEREST";
+            String printOwner = payment.interestAmount() > 0 ? "Interest receipt: P'Na" : "Premium receipt: P'Oy";
+            String paymentStatus = payment.paymentStatus() == null || payment.paymentStatus().isBlank()
+                    ? "WAIT_CALLBACK"
+                    : payment.paymentStatus();
             paymentRows.append("<tr>")
                     .append("<td><strong>").append(escape(payment.paymentId())).append("</strong><p>")
-                    .append(escape(payment.createdAt())).append("</p></td>")
+                    .append(escape(payment.createdAt())).append("</p><p>").append(escape(paymentStatus)).append("</p></td>")
                     .append("<td>").append(escape(payment.policyNo())).append("<p>")
                     .append(escape(payment.payPeriod())).append("</p></td>")
                     .append("<td>").append(escape(payment.collectionMethod())).append("<p>")
@@ -493,42 +555,74 @@ GET /api/backlog/epics/%s</pre>
                     .append("<td>").append(escape(payment.collectionId())).append("<p>")
                     .append(escape(payment.trxId())).append("</p></td>")
                     .append("<td>").append(money(payment.totalAmount())).append("<p>Interest ")
-                    .append(money(payment.interestAmount())).append("</p></td>")
+                    .append(money(payment.interestAmount())).append("</p><p>Paid ")
+                    .append(money(payment.paidAmount())).append("</p></td>")
                     .append("<td>").append(escape(payment.receiptPremiumNo())).append("<p>")
-                    .append(escape(nullToBlank(payment.receiptInterestNo()))).append("</p></td>")
-                    .append("<td><span class='status'>").append(escape(payment.reconcileStatus())).append("</span></td>")
+                    .append(escape(nullToBlank(payment.receiptInterestNo()))).append("</p><p>")
+                    .append(escape(printGroup)).append(" / ").append(escape(printOwner)).append("</p></td>")
+                    .append("<td><span class='status ").append(statusClass(payment.reconcileStatus())).append("'>")
+                    .append(escape(payment.reconcileStatus())).append("</span><p>")
+                    .append("Response ").append(escape(nullToBlank(payment.responseCode()))).append("</p></td>")
                     .append("<td><span class='status'>").append(escape(payment.transactionStatus())).append("</span><p>")
                     .append(escape(payment.glStatus())).append(" / ").append(escape(payment.smsStatus())).append("</p></td>")
+                    .append("<td class='action-cell'>")
+                    .append(paymentStatusForm(payment, "SUCCESS", payment.totalAmount(), "Success"))
+                    .append(paymentStatusForm(payment, "SUCCESS", Math.max(0, payment.totalAmount() - 10), "Mismatch"))
+                    .append(paymentStatusForm(payment, "FAILED", 0, "Fail"))
+                    .append("</td>")
                     .append("</tr>");
         }
         if (paymentRows.isEmpty()) {
-            paymentRows.append("<tr><td colspan='8'>No APL payments yet.</td></tr>");
+            paymentRows.append("<tr><td colspan='9'>No APL payments yet.</td></tr>");
         }
 
         String html = """
                 <section class="panel">
                   <div class="section-title">
-                    <h2>APL/RYP Payment Console</h2>
-                    <a class="button" href="/projects/APL-RYP-PAYMENT">Requirement</a>
+                    <h2>R3 Prototype Console: APL/RYP Payment</h2>
+                    <div class="action-cell">
+                      <a class="button" href="/roadmap/R3">Roadmap</a>
+                      <a class="button" href="/projects/APL-RYP-PAYMENT">Requirement</a>
+                      <a class="button" href="/apl/receipts">Receipts</a>
+                      <a class="button" href="/apl/reconcile">Reconcile</a>
+                      <a class="button" href="/apl/gl">GL</a>
+                      <a class="button" href="/apl/reports">Reports</a>
+                    </div>
                   </div>
                   <div class="detail-grid">
-                    <div><strong>Scope</strong><span>TL Smart, TLI App, Core System</span></div>
-                    <div><strong>Payment Phase 1</strong><span>QR Code, Credit Card</span></div>
-                    <div><strong>Core Support</strong><span>Legacy, InsureMo</span></div>
-                    <div><strong>Automation</strong><span>Receipt, Reconcile, Transaction, GL, SMS</span></div>
+                    <div><strong>Feature 1</strong><span>Policy eligibility: product, status, APL status</span></div>
+                    <div><strong>Feature 2</strong><span>Prepare policy, agent, exclusive code for TL Smart/TLI App</span></div>
+                    <div><strong>Feature 3</strong><span>Realtime premium, rider, and interest quote</span></div>
+                    <div><strong>Feature 4</strong><span>QR/Credit Card payment and callback result</span></div>
+                    <div><strong>Feature 5</strong><span>Premium receipt, interest receipt, sorting and print owner</span></div>
+                    <div><strong>Feature 6-8</strong><span>Legacy/InsureMo update, reconcile, GL, and SMS status</span></div>
                   </div>
                 </section>
                 <section class="panel">
-                  <h2>Policy Premium and Realtime Quote</h2>
+                  <h2>Payment Channel Setup</h2>
                   <table>
-                    <thead><tr><th>Policy</th><th>App</th><th>Core</th><th>APL</th><th>Premium</th><th>Total Due</th><th>Status</th><th>Payment</th></tr></thead>
+                    <thead><tr><th>Channel</th><th>Phase</th><th>Status</th><th>Rule</th><th>Remark</th></tr></thead>
                     <tbody>%s</tbody>
                   </table>
                 </section>
                 <section class="panel">
+                  <h2>Payment Method Product Rule Config</h2>
+                  <table>
+                    <thead><tr><th>Method</th><th>Product Type</th><th>Multi Period</th><th>Supported</th><th>Dependency/Remark</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>Policy Eligibility, Prepared Data and Realtime Quote</h2>
+                  <table>
+                    <thead><tr><th>Policy</th><th>App/Core</th><th>APL</th><th>Premium Split</th><th>Total Due</th><th>Eligibility/Prepared</th><th>Payment</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel" id="payments">
                   <h2>Receipt, Reconcile, Transaction and GL Report</h2>
                   <table>
-                    <thead><tr><th>Payment</th><th>Policy</th><th>Method</th><th>Collection/Trx</th><th>Amount</th><th>Receipts</th><th>Reconcile</th><th>Downstream</th></tr></thead>
+                    <thead><tr><th>Payment</th><th>Policy</th><th>Method</th><th>Collection/Trx</th><th>Amount</th><th>Receipts/Print</th><th>Reconcile</th><th>Downstream</th><th>Callback</th></tr></thead>
                     <tbody>%s</tbody>
                   </table>
                 </section>
@@ -537,11 +631,193 @@ GET /api/backlog/epics/%s</pre>
                   <pre>GET  /api/apl/policies
 GET  /api/apl/policies/{policyNo}
 GET  /api/apl/quote?policyNo=APL100001
+GET  /api/apl/payment-channels
+GET  /api/v1/config/payment-method-product-rules
+GET  /api/v1/config/due-date-status-rules
+GET  /api/v1/config/premium-component-rules
+GET  /api/apl/eligibility?policyNo=APL100001
+GET  /api/apl/prepare?policyNo=APL100001
 GET  /api/apl/payments
-POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
+POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR
+POST /api/apl/applications/payment-status  paymentId=APL...&amp;paymentResult=SUCCESS&amp;responseCode=0&amp;paidAmount=3450.00</pre>
                 </section>
-                """.formatted(policyRows, paymentRows);
+                """.formatted(channelRows, methodRuleRows, policyRows, paymentRows);
         return layout("APL/RYP Payment", html);
+    }
+
+    private String premiumComponentSummary(String policyNo) {
+        StringBuilder html = new StringBuilder();
+        for (AplPremiumComponent component : database.findAplPremiumComponents(policyNo)) {
+            if (html.length() > 0) {
+                html.append("<br>");
+            }
+            html.append(escape(component.componentName())).append(": ").append(money(component.amount()));
+        }
+        return html.toString();
+    }
+
+    private String aplReceiptsPage() {
+        StringBuilder rows = new StringBuilder();
+        for (AplReceipt receipt : database.findAplReceipts()) {
+            rows.append("<tr>")
+                    .append("<td><strong>").append(escape(receipt.receiptNo())).append("</strong><p>")
+                    .append(escape(receipt.receiptType())).append("</p></td>")
+                    .append("<td>").append(escape(receipt.policyNo())).append("<p>")
+                    .append(escape(receipt.paymentId())).append("</p></td>")
+                    .append("<td>").append(escape(receipt.printGroup())).append("<p>")
+                    .append(escape(receipt.printOwner())).append("</p></td>")
+                    .append("<td>").append(money(receipt.amount())).append("</td>")
+                    .append("<td><span class='status ").append(statusClass(receipt.printStatus())).append("'>")
+                    .append(escape(receipt.printStatus())).append("</span><p>")
+                    .append(escape(nullToBlank(receipt.printBatchNo()))).append("</p></td>")
+                    .append("<td><span class='status ").append(statusClass(receipt.reconcileStatus())).append("'>")
+                    .append(escape(receipt.reconcileStatus())).append("</span></td>")
+                    .append("<td class='action-cell'>")
+                    .append(confirmPrintForm(receipt))
+                    .append("</td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='7'>No receipt records yet.</td></tr>");
+        }
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Receipt and Printing</h2>
+                    <a class="button" href="/apl">Back to APL Console</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>Receipt</th><th>Policy/Payment</th><th>Print Group</th><th>Amount</th><th>Print Status</th><th>Reconcile</th><th>Action</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>API</h2>
+                  <pre>GET  /api/apl/receipts
+POST /api/apl/receipts/{receiptNo}/confirm-print</pre>
+                </section>
+                """.formatted(rows);
+        return layout("Receipt and Printing", html);
+    }
+
+    private String aplReconcilePage() {
+        StringBuilder rows = new StringBuilder();
+        for (AplReconcileItem item : database.findAplReconcileItems()) {
+            rows.append("<tr>")
+                    .append("<td><strong>").append(escape(item.paymentId())).append("</strong><p>")
+                    .append(escape(item.policyNo())).append("</p></td>")
+                    .append("<td>").append(money(item.expectedAmount())).append("<p>Paid ")
+                    .append(money(item.paidAmount())).append("</p></td>")
+                    .append("<td>").append(money(item.diffAmount())).append("</td>")
+                    .append("<td>").append(escape(item.matchKey())).append("<p>")
+                    .append(escape(item.reasonCode())).append("</p></td>")
+                    .append("<td><span class='status ").append(statusClass(item.reconcileStatus())).append("'>")
+                    .append(escape(item.reconcileStatus())).append("</span></td>")
+                    .append("<td>").append(escape(item.owner())).append("<p>")
+                    .append(escape(item.note())).append("</p></td>")
+                    .append("<td class='action-cell'>").append(approveReconcileForm(item.paymentId())).append("</td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='7'>No reconcile records yet.</td></tr>");
+        }
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Collection Reconcile</h2>
+                    <a class="button" href="/apl">Back to APL Console</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>Payment</th><th>Amount</th><th>Diff</th><th>Match Key</th><th>Status</th><th>Owner/Note</th><th>Action</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>API</h2>
+                  <pre>GET  /api/apl/reconcile/items
+POST /api/apl/reconcile/{paymentId}/approve</pre>
+                </section>
+                """.formatted(rows);
+        return layout("Collection Reconcile", html);
+    }
+
+    private String aplGlPage() {
+        StringBuilder rows = new StringBuilder();
+        for (AplGlTransaction item : database.findAplGlTransactions()) {
+            rows.append("<tr>")
+                    .append("<td><strong>").append(escape(item.glTransactionId())).append("</strong><p>")
+                    .append(escape(item.paymentId())).append("</p></td>")
+                    .append("<td>").append(escape(item.policyNo())).append("</td>")
+                    .append("<td>").append(escape(item.premiumType())).append("<p>")
+                    .append(escape(item.installmentNo())).append("</p></td>")
+                    .append("<td>").append(escape(item.debitAccount())).append("<p>")
+                    .append(escape(item.creditAccount())).append("</p></td>")
+                    .append("<td>").append(money(item.amount())).append("</td>")
+                    .append("<td><span class='status ").append(statusClass(item.postingStatus())).append("'>")
+                    .append(escape(item.postingStatus())).append("</span></td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='6'>No GL entries yet.</td></tr>");
+        }
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>GL Transactions</h2>
+                    <a class="button" href="/apl">Back to APL Console</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>GL Transaction</th><th>Policy</th><th>Premium Type</th><th>Accounts</th><th>Amount</th><th>Status</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>API</h2>
+                  <pre>GET /api/apl/gl/transactions</pre>
+                </section>
+                """.formatted(rows);
+        return layout("GL Transactions", html);
+    }
+
+    private String aplReportsPage() {
+        StringBuilder rows = new StringBuilder();
+        for (AplPayment payment : database.findAplPayments()) {
+            rows.append("<tr>")
+                    .append("<td><strong>").append(escape(payment.policyNo())).append("</strong><p>")
+                    .append(escape(payment.paymentId())).append("</p></td>")
+                    .append("<td>").append(escape(payment.collectionMethod())).append("</td>")
+                    .append("<td>").append(money(payment.basePremium())).append("<p>Rider ")
+                    .append(money(payment.riderPremium())).append("</p></td>")
+                    .append("<td>").append(money(payment.interestAmount())).append("</td>")
+                    .append("<td>").append(money(payment.totalAmount())).append("</td>")
+                    .append("<td><span class='status ").append(statusClass(payment.paymentStatus())).append("'>")
+                    .append(escape(nullToBlank(payment.paymentStatus()))).append("</span></td>")
+                    .append("<td><span class='status ").append(statusClass(payment.reconcileStatus())).append("'>")
+                    .append(escape(payment.reconcileStatus())).append("</span></td>")
+                    .append("<td>").append(escape(payment.glStatus())).append("<p>")
+                    .append(escape(payment.smsStatus())).append("</p></td>")
+                    .append("</tr>");
+        }
+        if (rows.isEmpty()) {
+            rows.append("<tr><td colspan='8'>No report records yet.</td></tr>");
+        }
+        String html = """
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Renewal Payment Report</h2>
+                    <a class="button" href="/apl">Back to APL Console</a>
+                  </div>
+                  <table>
+                    <thead><tr><th>Policy/Payment</th><th>Channel</th><th>Premium</th><th>Interest</th><th>Total</th><th>Payment</th><th>Reconcile</th><th>Downstream</th></tr></thead>
+                    <tbody>%s</tbody>
+                  </table>
+                </section>
+                <section class="panel">
+                  <h2>API</h2>
+                  <pre>GET /api/apl/reports/renewals</pre>
+                </section>
+                """.formatted(rows);
+        return layout("Renewal Payment Report", html);
     }
 
     private String paymentForm(String policyNo, String collectionMethod, String label) {
@@ -549,6 +825,36 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 + "<input type='hidden' name='policyNo' value='" + escapeAttribute(policyNo) + "'>"
                 + "<input type='hidden' name='collectionMethod' value='" + escapeAttribute(collectionMethod) + "'>"
                 + "<button class='primary' type='submit'>" + escape(label) + "</button>"
+                + "</form>";
+    }
+
+    private String paymentStatusForm(AplPayment payment, String result, double paidAmount, String label) {
+        String cssClass = "FAILED".equals(result) ? "danger" : "button";
+        String responseCode = "FAILED".equals(result) ? "99" : "0";
+        return "<form method='post' action='/apl/payment-status#payments'>"
+                + "<input type='hidden' name='paymentId' value='" + escapeAttribute(payment.paymentId()) + "'>"
+                + "<input type='hidden' name='paymentResult' value='" + escapeAttribute(result) + "'>"
+                + "<input type='hidden' name='responseCode' value='" + escapeAttribute(responseCode) + "'>"
+                + "<input type='hidden' name='paidAmount' value='" + String.format(Locale.US, "%.2f", paidAmount) + "'>"
+                + "<button class='" + cssClass + "' type='submit'>" + escape(label) + "</button>"
+                + "</form>";
+    }
+
+    private String confirmPrintForm(AplReceipt receipt) {
+        if (!"WAIT_PRINT".equals(receipt.printStatus())) {
+            return "<span class='button disabled'>No action</span>";
+        }
+        return "<form method='post' action='/apl/receipts/confirm-print'>"
+                + "<input type='hidden' name='receiptNo' value='" + escapeAttribute(receipt.receiptNo()) + "'>"
+                + "<input type='hidden' name='paymentId' value='" + escapeAttribute(receipt.paymentId()) + "'>"
+                + "<button class='primary' type='submit'>Confirm Print</button>"
+                + "</form>";
+    }
+
+    private String approveReconcileForm(String paymentId) {
+        return "<form method='post' action='/apl/reconcile/approve'>"
+                + "<input type='hidden' name='paymentId' value='" + escapeAttribute(paymentId) + "'>"
+                + "<button class='primary' type='submit'>Approve Match</button>"
                 + "</form>";
     }
 
@@ -1068,6 +1374,30 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
         redirect(exchange, "/apl");
     }
 
+    private void updateAplPaymentStatus(HttpExchange exchange) throws IOException {
+        Map<String, String> form = readForm(exchange);
+        String paymentId = form.getOrDefault("paymentId", "").trim();
+        String paymentResult = form.getOrDefault("paymentResult", "SUCCESS").trim();
+        String responseCode = form.getOrDefault("responseCode", "0").trim();
+        double paidAmount = parseMoney(form.getOrDefault("paidAmount", "0"));
+        database.updateAplPaymentStatus(paymentId, paymentResult, responseCode, paidAmount);
+        redirect(exchange, "/apl#payments");
+    }
+
+    private void confirmAplReceiptPrint(HttpExchange exchange) throws IOException {
+        Map<String, String> form = readForm(exchange);
+        database.confirmAplReceiptPrint(
+                form.getOrDefault("receiptNo", "").trim(),
+                form.getOrDefault("paymentId", "").trim());
+        redirect(exchange, "/apl/receipts");
+    }
+
+    private void approveAplReconcile(HttpExchange exchange) throws IOException {
+        Map<String, String> form = readForm(exchange);
+        database.approveAplReconcile(form.getOrDefault("paymentId", "").trim());
+        redirect(exchange, "/apl/reconcile");
+    }
+
     private void handleAplApi(HttpExchange exchange, String path) throws IOException {
         if (isPost(exchange) && "/api/apl/payments".equals(path)) {
             Map<String, String> form = readForm(exchange);
@@ -1080,6 +1410,113 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 renderJson(exchange, "{\"error\":\"validation_failed\",\"message\":\""
                         + jsonEscape(exception.getMessage()) + "\"}", 400);
             }
+            return;
+        }
+        if ((isPost(exchange) || isPut(exchange)) && "/api/apl/applications/payment-status".equals(path)) {
+            Map<String, String> form = readForm(exchange);
+            try {
+                AplPayment payment = database.updateAplPaymentStatus(
+                        form.getOrDefault("paymentId", "").trim(),
+                        form.getOrDefault("paymentResult", "SUCCESS").trim(),
+                        form.getOrDefault("responseCode", "0").trim(),
+                        parseMoney(form.getOrDefault("paidAmount", "0")));
+                renderJson(exchange, aplPaymentJson(payment), 200);
+            } catch (IllegalArgumentException exception) {
+                renderJson(exchange, "{\"error\":\"validation_failed\",\"message\":\""
+                        + jsonEscape(exception.getMessage()) + "\"}", 400);
+            }
+            return;
+        }
+        if (isPost(exchange) && path.matches("/api/apl/receipts/[A-Za-z0-9-]+/confirm-print")) {
+            String receiptNo = path.substring("/api/apl/receipts/".length(), path.length() - "/confirm-print".length());
+            Map<String, String> form = readForm(exchange);
+            database.confirmAplReceiptPrint(receiptNo, form.getOrDefault("paymentId", "").trim());
+            renderJson(exchange, "{\"status\":\"CONFIRMED\"}", 200);
+            return;
+        }
+        if (isPost(exchange) && path.matches("/api/apl/reconcile/[A-Za-z0-9-]+/approve")) {
+            String paymentId = path.substring("/api/apl/reconcile/".length(), path.length() - "/approve".length());
+            renderJson(exchange, aplPaymentJson(database.approveAplReconcile(paymentId)), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/receipts".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplReceipt> receipts = database.findAplReceipts();
+            for (int i = 0; i < receipts.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplReceiptJson(receipts.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/reconcile/items".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplReconcileItem> items = database.findAplReconcileItems();
+            for (int i = 0; i < items.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplReconcileJson(items.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/gl/transactions".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplGlTransaction> items = database.findAplGlTransactions();
+            for (int i = 0; i < items.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplGlJson(items.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/reports/renewals".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<AplPayment> payments = database.findAplPayments();
+            for (int i = 0; i < payments.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(aplPaymentJson(payments.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/payment-channels".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<PaymentChannel> channels = database.findPaymentChannels();
+            for (int i = 0; i < channels.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(paymentChannelJson(channels.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/eligibility".equals(path)) {
+            Map<String, String> params = parseQuery(exchange.getRequestURI().getRawQuery());
+            renderJson(exchange, aplEligibilityJson(database.checkAplEligibility(params.getOrDefault("policyNo", ""))), 200);
+            return;
+        }
+        if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/prepare".equals(path)) {
+            Map<String, String> params = parseQuery(exchange.getRequestURI().getRawQuery());
+            AplPreparedPolicy preparedPolicy = database.prepareAplPolicy(params.getOrDefault("policyNo", ""));
+            if (preparedPolicy == null) {
+                renderJson(exchange, "{\"error\":\"policy_not_found\"}", 404);
+                return;
+            }
+            renderJson(exchange, aplPreparedPolicyJson(preparedPolicy), 200);
             return;
         }
         if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/api/apl/policies".equals(path)) {
@@ -1131,6 +1568,53 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
         renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
     }
 
+    private void handleConfigApi(HttpExchange exchange, String path) throws IOException {
+        if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            renderJson(exchange, "{\"error\":\"method_not_allowed\"}", 405);
+            return;
+        }
+        if ("/api/config/payment-method-product-rules".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<PaymentMethodProductRule> rules = database.findPaymentMethodProductRules();
+            for (int i = 0; i < rules.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(paymentMethodProductRuleJson(rules.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("/api/config/due-date-status-rules".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<DueDateStatusRule> rules = database.findDueDateStatusRules();
+            for (int i = 0; i < rules.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(dueDateStatusRuleJson(rules.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        if ("/api/config/premium-component-rules".equals(path)) {
+            StringBuilder json = new StringBuilder("[");
+            List<ProductPremiumComponentRule> rules = database.findProductPremiumComponentRules();
+            for (int i = 0; i < rules.size(); i++) {
+                if (i > 0) {
+                    json.append(",");
+                }
+                json.append(productPremiumComponentRuleJson(rules.get(i)));
+            }
+            json.append("]");
+            renderJson(exchange, json.toString(), 200);
+            return;
+        }
+        renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
+    }
+
     private void handleBacklogApi(HttpExchange exchange, String path) throws IOException {
         if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
             renderJson(exchange, "{\"error\":\"method_not_allowed\"}", 405);
@@ -1172,6 +1656,10 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
         return "POST".equalsIgnoreCase(exchange.getRequestMethod());
     }
 
+    private boolean isPut(HttpExchange exchange) {
+        return "PUT".equalsIgnoreCase(exchange.getRequestMethod());
+    }
+
     private Map<String, String> readForm(HttpExchange exchange) throws IOException {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         Map<String, String> params = new LinkedHashMap<>();
@@ -1211,6 +1699,21 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
             params.put(decode(parts[0]), parts.length > 1 ? decode(parts[1]) : "");
         }
         return params;
+    }
+
+    private String normalizeApiPath(String path) {
+        if (path.startsWith("/api/v1/")) {
+            return "/api/" + path.substring("/api/v1/".length());
+        }
+        return path;
+    }
+
+    private double parseMoney(String value) {
+        try {
+            return Double.parseDouble(value.replace(",", "").trim());
+        } catch (RuntimeException exception) {
+            return 0;
+        }
     }
 
     private <T> PageSlice<T> paginate(List<T> items, int page, int pageSize) {
@@ -1272,9 +1775,16 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 + jsonField("customerName", policy.customerName()) + ","
                 + jsonField("appSource", policy.appSource()) + ","
                 + jsonField("coreSystem", policy.coreSystem()) + ","
+                + jsonField("productType", policy.productType()) + ","
+                + jsonField("dueDate", policy.dueDate()) + ","
+                + jsonField("dueDateStatus", database.evaluateDueDateStatus(policy.dueDate()).statusCode()) + ","
+                + jsonField("dueDateStatusDescription", database.evaluateDueDateStatus(policy.dueDate()).description()) + ","
                 + "\"aplDays\":" + policy.aplDays() + ","
                 + "\"basePremium\":" + jsonNumber(policy.basePremium()) + ","
                 + "\"riderPremium\":" + jsonNumber(policy.riderPremium()) + ","
+                + "\"extraPremium\":" + jsonNumber(policy.extraPremium()) + ","
+                + "\"topupPremium\":" + jsonNumber(policy.topupPremium()) + ","
+                + "\"rspPremium\":" + jsonNumber(policy.rspPremium()) + ","
                 + "\"interestAmount\":" + jsonNumber(policy.interestAmount()) + ","
                 + "\"allowCreditCard\":" + policy.allowCreditCard() + ","
                 + jsonField("status", policy.status())
@@ -1291,6 +1801,75 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 + "\"totalAmount\":" + jsonNumber(quote.totalAmount()) + ","
                 + "\"hasInterest\":" + quote.hasInterest() + ","
                 + "\"allowCreditCard\":" + quote.allowCreditCard()
+                + "}";
+    }
+
+    private String paymentChannelJson(PaymentChannel channel) {
+        return "{"
+                + jsonField("channelCode", channel.channelCode()) + ","
+                + jsonField("channelName", channel.channelName()) + ","
+                + jsonField("phase", channel.phase()) + ","
+                + "\"isEnabled\":" + channel.isEnabled() + ","
+                + "\"allowApl\":" + channel.allowApl() + ","
+                + "\"allowInterest\":" + channel.allowInterest() + ","
+                + "\"creditCardRequired\":" + channel.creditCardRequired() + ","
+                + jsonField("remark", channel.remark())
+                + "}";
+    }
+
+    private String paymentMethodProductRuleJson(PaymentMethodProductRule rule) {
+        return "{"
+                + jsonField("channelCode", rule.channelCode()) + ","
+                + jsonField("productType", rule.productType()) + ","
+                + "\"supportMultiPeriodPayment\":" + rule.supportMultiPeriodPayment() + ","
+                + "\"isSupported\":" + rule.isSupported() + ","
+                + jsonField("dependencyApi", nullToBlank(rule.dependencyApi())) + ","
+                + jsonField("remark", rule.remark())
+                + "}";
+    }
+
+    private String dueDateStatusRuleJson(DueDateStatusRule rule) {
+        return "{"
+                + jsonField("statusCode", rule.statusCode()) + ","
+                + jsonField("description", rule.description()) + ","
+                + jsonField("expression", rule.expression()) + ","
+                + "\"sortOrder\":" + rule.sortOrder()
+                + "}";
+    }
+
+    private String productPremiumComponentRuleJson(ProductPremiumComponentRule rule) {
+        return "{"
+                + jsonField("productType", rule.productType()) + ","
+                + jsonField("componentCode", rule.componentCode()) + ","
+                + jsonField("componentName", rule.componentName()) + ","
+                + jsonField("dataField", rule.dataField()) + ","
+                + "\"sortOrder\":" + rule.sortOrder() + ","
+                + "\"isEnabled\":" + rule.isEnabled()
+                + "}";
+    }
+
+    private String aplEligibilityJson(AplEligibility eligibility) {
+        return "{"
+                + jsonField("policyNo", eligibility.policyNo()) + ","
+                + "\"eligible\":" + eligibility.eligible() + ","
+                + "\"validProduct\":" + eligibility.validProduct() + ","
+                + "\"validPolicyStatus\":" + eligibility.validPolicyStatus() + ","
+                + "\"validAplStatus\":" + eligibility.validAplStatus() + ","
+                + "\"hasInterest\":" + eligibility.hasInterest() + ","
+                + jsonField("message", eligibility.message())
+                + "}";
+    }
+
+    private String aplPreparedPolicyJson(AplPreparedPolicy policy) {
+        return "{"
+                + jsonField("policyNo", policy.policyNo()) + ","
+                + jsonField("customerName", policy.customerName()) + ","
+                + jsonField("appSource", policy.appSource()) + ","
+                + jsonField("coreSystem", policy.coreSystem()) + ","
+                + jsonField("agentCode", policy.agentCode()) + ","
+                + jsonField("exclusiveCode", policy.exclusiveCode()) + ","
+                + "\"eligible\":" + policy.eligible() + ","
+                + "\"totalAmount\":" + jsonNumber(policy.totalAmount())
                 + "}";
     }
 
@@ -1318,7 +1897,58 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                 + jsonField("transactionStatus", payment.transactionStatus()) + ","
                 + jsonField("glStatus", payment.glStatus()) + ","
                 + jsonField("smsStatus", payment.smsStatus()) + ","
+                + jsonField("paymentStatus", nullToBlank(payment.paymentStatus())) + ","
+                + "\"paidAmount\":" + jsonNumber(payment.paidAmount()) + ","
+                + jsonField("responseCode", nullToBlank(payment.responseCode())) + ","
+                + jsonField("processedAt", nullToBlank(payment.processedAt())) + ","
                 + jsonField("createdAt", payment.createdAt())
+                + "}";
+    }
+
+    private String aplReceiptJson(AplReceipt receipt) {
+        return "{"
+                + jsonField("receiptNo", receipt.receiptNo()) + ","
+                + jsonField("paymentId", receipt.paymentId()) + ","
+                + jsonField("policyNo", receipt.policyNo()) + ","
+                + jsonField("receiptType", receipt.receiptType()) + ","
+                + jsonField("printGroup", receipt.printGroup()) + ","
+                + jsonField("printOwner", receipt.printOwner()) + ","
+                + jsonField("printBatchNo", nullToBlank(receipt.printBatchNo())) + ","
+                + jsonField("printStatus", receipt.printStatus()) + ","
+                + jsonField("reconcileStatus", receipt.reconcileStatus()) + ","
+                + "\"amount\":" + jsonNumber(receipt.amount()) + ","
+                + jsonField("createdAt", receipt.createdAt())
+                + "}";
+    }
+
+    private String aplReconcileJson(AplReconcileItem item) {
+        return "{"
+                + jsonField("paymentId", item.paymentId()) + ","
+                + jsonField("policyNo", item.policyNo()) + ","
+                + "\"expectedAmount\":" + jsonNumber(item.expectedAmount()) + ","
+                + "\"paidAmount\":" + jsonNumber(item.paidAmount()) + ","
+                + "\"diffAmount\":" + jsonNumber(item.diffAmount()) + ","
+                + jsonField("matchKey", item.matchKey()) + ","
+                + jsonField("reconcileStatus", item.reconcileStatus()) + ","
+                + jsonField("reasonCode", item.reasonCode()) + ","
+                + jsonField("owner", item.owner()) + ","
+                + jsonField("note", item.note()) + ","
+                + jsonField("createdAt", item.createdAt())
+                + "}";
+    }
+
+    private String aplGlJson(AplGlTransaction item) {
+        return "{"
+                + jsonField("glTransactionId", item.glTransactionId()) + ","
+                + jsonField("paymentId", item.paymentId()) + ","
+                + jsonField("policyNo", item.policyNo()) + ","
+                + jsonField("premiumType", item.premiumType()) + ","
+                + jsonField("installmentNo", item.installmentNo()) + ","
+                + jsonField("debitAccount", item.debitAccount()) + ","
+                + jsonField("creditAccount", item.creditAccount()) + ","
+                + "\"amount\":" + jsonNumber(item.amount()) + ","
+                + jsonField("postingStatus", item.postingStatus()) + ","
+                + jsonField("createdAt", item.createdAt())
                 + "}";
     }
 
@@ -1412,6 +2042,21 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
         return String.format(Locale.US, "%,.2f", value);
     }
 
+    private String statusClass(String status) {
+        String value = status == null ? "" : status.toUpperCase(Locale.ROOT);
+        if (value.contains("MATCHED") || value.contains("SUCCESS") || value.contains("READY")
+                || value.contains("UPDATED") || value.contains("QUEUED")) {
+            return "ok";
+        }
+        if (value.contains("FAILED") || value.contains("BLOCK")) {
+            return "danger-soft";
+        }
+        if (value.contains("HOLD") || value.contains("WAIT") || value.contains("UNMATCHED")) {
+            return "hold";
+        }
+        return "";
+    }
+
     private String layout(String title, String body) {
         return """
                 <!doctype html>
@@ -1465,6 +2110,9 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                     tbody tr:hover { background: #f7fbff; }
                     td p { margin: 6px 0 0; color: #475569; }
                     .status { background: #e0f2fe; color: #075985; padding: 4px 9px; border-radius: 999px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+                    .status.ok { background: #dcfce7; color: #166534; }
+                    .status.hold { background: #fef3c7; color: #92400e; }
+                    .status.danger-soft { background: #fee2e2; color: #991b1b; }
                     .inline-form { display: flex; gap: 8px; margin-bottom: 16px; }
                     .inline-form input { flex: 1; }
                     .section-title { display: flex; justify-content: space-between; align-items: center; }
@@ -1503,7 +2151,7 @@ POST /api/apl/payments  policyNo=APL100001&amp;collectionMethod=QR</pre>
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a><a href="/logout">Logout</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/apl/receipts">Receipts</a><a href="/apl/reconcile">Reconcile</a><a href="/apl/gl">GL</a><a href="/apl/reports">Reports</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a><a href="/logout">Logout</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>

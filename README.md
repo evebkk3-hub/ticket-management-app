@@ -291,34 +291,75 @@ Page:
 
 ```text
 http://localhost:8080/apl
+http://localhost:8080/apl/receipts
+http://localhost:8080/apl/reconcile
+http://localhost:8080/apl/gl
+http://localhost:8080/apl/reports
 ```
 
 Capabilities:
 
 - Show sample Legacy and InsureMo policies in APL period
+- Validate policy eligibility by product, policy status, and APL status
+- Prepare policy data for TL Smart/TLI App, including agent and exclusive code
 - Calculate base premium, rider premium, interest, and total due in realtime
+- Show payment channel setup for Phase 1 QR/Credit Card and Phase 2 Direct Debit/Cheque
 - Support Phase 1 collection methods: QR and Credit Card
 - Block Credit Card when the policy/product is not eligible
 - Create premium receipt and interest receipt numbers
+- Show print sorting group for interest and non-interest receipts
 - Store payment transaction fields aligned with the NASA R2 data dictionary, including `collection_id`, `trx_id`, `temp_rp_no`, `reference_one`, `reference_two`, `reference_three`, `payment_type_desc`, and `module_type`
-- Auto reconcile matched payments
+- Accept payment result callback and auto reconcile matched payments
+- Hold unmatched payments for reconcile before downstream posting
 - Mark Core transaction update and GL readiness
 - Queue SMS for QR and Credit Card payments
+- Provide a renewal/payment report view in the APL console
+- Confirm receipt print batches from the Receipt and Printing page
+- Approve reconcile items to release transaction/GL/SMS flow in the prototype
+- Show generated GL entries split by life premium, rider premium, and total interest
 
 APL API:
 
 ```text
-GET  /api/apl/policies
-GET  /api/apl/policies/{policyNo}
-GET  /api/apl/quote?policyNo=APL100001
-GET  /api/apl/payments
-POST /api/apl/payments
+GET  /api/v1/apl/policies
+GET  /api/v1/apl/policies/{policyNo}
+GET  /api/v1/apl/quote?policyNo=APL100001
+GET  /api/v1/apl/payment-channels
+GET  /api/v1/apl/eligibility?policyNo=APL100001
+GET  /api/v1/apl/prepare?policyNo=APL100001
+GET  /api/v1/apl/payments
+POST /api/v1/apl/payments
+POST /api/v1/apl/applications/payment-status
+PUT  /api/v1/apl/applications/payment-status
+GET  /api/v1/apl/receipts
+POST /api/v1/apl/receipts/{receiptNo}/confirm-print
+GET  /api/v1/apl/reconcile/items
+POST /api/v1/apl/reconcile/{paymentId}/approve
+GET  /api/v1/apl/gl/transactions
+GET  /api/v1/apl/reports/renewals
+GET  /api/v1/config/payment-method-product-rules
+GET  /api/v1/config/due-date-status-rules
+GET  /api/v1/config/premium-component-rules
 ```
+
+The legacy `/api/apl/...` paths remain available as aliases, but new integrations should use `/api/v1/...`.
+
+Config tables drive these rules:
+
+- Payment method by product type, including QR Code (BAY), CreditCard (KBANK), DirectDebit, multi-period support, and PF-005 dependency.
+- Due date status code rules `A`, `B`, `C`, `D`, `E`, `F`, `G1`-`G7`, and `H`.
+- Premium component mapping by product type: `life_premium`, `rider_premium`, `extra_premium`, `topup_premium`, and `rsp_premium`.
 
 Example API payment body:
 
 ```text
 policyNo=APL100001&collectionMethod=QR
+```
+
+Example payment callback body:
+
+```text
+paymentId=APL...&paymentResult=SUCCESS&responseCode=0&paidAmount=3450.00
 ```
 
 ## R3 Roadmap Workflow

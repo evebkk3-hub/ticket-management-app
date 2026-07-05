@@ -8,6 +8,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -165,12 +167,36 @@ final class TicketDatabase {
                         customer_name text not null,
                         app_source text not null,
                         core_system text not null,
+                        product_type text not null default 'OL',
+                        due_date text not null default '2026-07-05',
                         apl_days integer not null,
                         base_premium real not null,
                         rider_premium real not null,
+                        extra_premium real not null default 0,
+                        topup_premium real not null default 0,
+                        rsp_premium real not null default 0,
                         interest_amount real not null,
                         allow_credit_card integer not null,
                         status text not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists due_date_status_rules (
+                        status_code text primary key,
+                        description text not null,
+                        expression text not null,
+                        sort_order integer not null
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists product_premium_component_rules (
+                        product_type text not null,
+                        component_code text not null,
+                        component_name text not null,
+                        data_field text not null,
+                        sort_order integer not null,
+                        is_enabled integer not null,
+                        primary key (product_type, component_code)
                     )
                     """);
             statement.executeUpdate("""
@@ -183,6 +209,17 @@ final class TicketDatabase {
                         allow_interest integer not null,
                         credit_card_required integer not null,
                         remark text
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists payment_method_product_rules (
+                        channel_code text not null,
+                        product_type text not null,
+                        support_multi_period_payment integer not null,
+                        is_supported integer not null,
+                        dependency_api text,
+                        remark text,
+                        primary key (channel_code, product_type)
                     )
                     """);
             statement.executeUpdate("""
@@ -216,7 +253,22 @@ final class TicketDatabase {
                         created_at text not null
                     )
                     """);
+            statement.executeUpdate("""
+                    create table if not exists apl_receipt_prints (
+                        receipt_no text primary key,
+                        payment_id text not null,
+                        print_batch_no text,
+                        print_status text not null,
+                        confirmed_at text,
+                        created_at text not null
+                    )
+                    """);
             ensureColumn(connection, "pantip_topics", "content", "text");
+            ensureColumn(connection, "apl_policies", "product_type", "text not null default 'OL'");
+            ensureColumn(connection, "apl_policies", "due_date", "text not null default '2026-07-05'");
+            ensureColumn(connection, "apl_policies", "extra_premium", "real not null default 0");
+            ensureColumn(connection, "apl_policies", "topup_premium", "real not null default 0");
+            ensureColumn(connection, "apl_policies", "rsp_premium", "real not null default 0");
             ensureColumn(connection, "apl_payments", "collection_id", "text");
             ensureColumn(connection, "apl_payments", "trx_id", "text");
             ensureColumn(connection, "apl_payments", "temp_rp_no", "text");
@@ -230,9 +282,14 @@ final class TicketDatabase {
             ensureColumn(connection, "apl_payments", "paid_amount", "real");
             ensureColumn(connection, "apl_payments", "response_code", "text");
             ensureColumn(connection, "apl_payments", "processed_at", "text");
+            ensureColumn(connection, "apl_receipt_prints", "print_batch_no", "text");
+            ensureColumn(connection, "apl_receipt_prints", "confirmed_at", "text");
             seedAplPaymentProject(connection);
             seedR3Backlog(connection);
             seedPaymentChannels(connection);
+            seedPaymentMethodProductRules(connection);
+            seedDueDateStatusRules(connection);
+            seedProductPremiumComponentRules(connection);
             seedAplPolicies(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
@@ -504,34 +561,47 @@ final class TicketDatabase {
     private void seedAplPolicies(Connection connection) throws SQLException {
         String sql = """
                 insert into apl_policies (
-                    policy_no, customer_name, app_source, core_system, apl_days,
-                    base_premium, rider_premium, interest_amount, allow_credit_card, status
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                on conflict(policy_no) do nothing
+                    policy_no, customer_name, app_source, core_system, product_type, due_date, apl_days,
+                    base_premium, rider_premium, extra_premium, topup_premium, rsp_premium,
+                    interest_amount, allow_credit_card, status
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(policy_no) do update set
+                    product_type = excluded.product_type,
+                    due_date = excluded.due_date,
+                    extra_premium = excluded.extra_premium,
+                    topup_premium = excluded.topup_premium,
+                    rsp_premium = excluded.rsp_premium,
+                    allow_credit_card = excluded.allow_credit_card
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            insertAplPolicy(statement, "APL100001", "Somchai Demo", "TL Smart", "Legacy", 120,
-                    18500.00, 2500.00, 740.50, true, "APL_OVER_90");
-            insertAplPolicy(statement, "APL100002", "Suda Demo", "TLI App", "InsureMo", 45,
-                    12600.00, 0.00, 0.00, true, "APL_UNDER_90");
-            insertAplPolicy(statement, "APL100003", "Narin Demo", "TL Smart", "InsureMo", 180,
-                    22100.00, 4200.00, 1510.75, false, "APL_OVER_90_CC_NOT_ALLOWED");
+            insertAplPolicy(statement, "APL100001", "Somchai Demo", "TL Smart", "Legacy", "OL", "2026-04-01", 120,
+                    18500.00, 2500.00, 350.00, 0.00, 0.00, 740.50, true, "APL_OVER_90");
+            insertAplPolicy(statement, "APL100002", "Suda Demo", "TLI App", "InsureMo", "PA", "2026-06-15", 45,
+                    12600.00, 0.00, 120.00, 0.00, 0.00, 0.00, true, "APL_UNDER_90");
+            insertAplPolicy(statement, "APL100003", "Narin Demo", "TL Smart", "InsureMo", "UL", "2026-03-20", 180,
+                    22100.00, 4200.00, 500.00, 3000.00, 0.00, 1510.75, false, "APL_OVER_90_CC_NOT_ALLOWED");
         }
     }
 
     private void insertAplPolicy(PreparedStatement statement, String policyNo, String customerName, String appSource,
-            String coreSystem, int aplDays, double basePremium, double riderPremium, double interestAmount,
+            String coreSystem, String productType, String dueDate, int aplDays, double basePremium, double riderPremium,
+            double extraPremium, double topupPremium, double rspPremium, double interestAmount,
             boolean allowCreditCard, String status) throws SQLException {
         statement.setString(1, policyNo);
         statement.setString(2, customerName);
         statement.setString(3, appSource);
         statement.setString(4, coreSystem);
-        statement.setInt(5, aplDays);
-        statement.setDouble(6, basePremium);
-        statement.setDouble(7, riderPremium);
-        statement.setDouble(8, interestAmount);
-        statement.setInt(9, allowCreditCard ? 1 : 0);
-        statement.setString(10, status);
+        statement.setString(5, productType);
+        statement.setString(6, dueDate);
+        statement.setInt(7, aplDays);
+        statement.setDouble(8, basePremium);
+        statement.setDouble(9, riderPremium);
+        statement.setDouble(10, extraPremium);
+        statement.setDouble(11, topupPremium);
+        statement.setDouble(12, rspPremium);
+        statement.setDouble(13, interestAmount);
+        statement.setInt(14, allowCreditCard ? 1 : 0);
+        statement.setString(15, status);
         statement.executeUpdate();
     }
 
@@ -552,9 +622,9 @@ final class TicketDatabase {
                 """;
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             insertPaymentChannel(statement, "QR", "QR Code", "PHASE_1", true, true, true, false,
-                    "Active for APL premium and interest payment.");
-            insertPaymentChannel(statement, "CREDIT_CARD", "Credit Card", "PHASE_1", true, true, true, true,
-                    "Allowed only when policy/product supports credit card.");
+                    "BAY QR Code. Active for APL premium and interest payment.");
+            insertPaymentChannel(statement, "CREDIT_CARD", "CreditCard (KBANK)", "PHASE_1", true, true, true, true,
+                    "Allowed only for OL and depends on API PF-005.");
             insertPaymentChannel(statement, "DIRECT_DEBIT", "Direct Debit One Time (RYP)", "PHASE_2", false, true, true,
                     false, "Planned for Phase 2.");
             insertPaymentChannel(statement, "CHEQUE", "Cheque", "PHASE_2", false, true, true, false,
@@ -573,6 +643,119 @@ final class TicketDatabase {
         statement.setInt(6, allowInterest ? 1 : 0);
         statement.setInt(7, creditCardRequired ? 1 : 0);
         statement.setString(8, remark);
+        statement.executeUpdate();
+    }
+
+    private void seedPaymentMethodProductRules(Connection connection) throws SQLException {
+        String sql = """
+                insert into payment_method_product_rules (
+                    channel_code, product_type, support_multi_period_payment, is_supported, dependency_api, remark
+                ) values (?, ?, ?, ?, ?, ?)
+                on conflict(channel_code, product_type) do update set
+                    support_multi_period_payment = excluded.support_multi_period_payment,
+                    is_supported = excluded.is_supported,
+                    dependency_api = excluded.dependency_api,
+                    remark = excluded.remark
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            List<String> productTypes = List.of("OL", "PA", "TAKAFUL", "UL", "UK", "LV", "IND");
+            for (String productType : productTypes) {
+                insertPaymentMethodProductRule(statement, "QR", productType, true, true, "", "QR Code (BAY)");
+                insertPaymentMethodProductRule(statement, "DIRECT_DEBIT", productType, true, true, "", "DirectDebit");
+                boolean creditCardSupported = "OL".equals(productType);
+                insertPaymentMethodProductRule(statement, "CREDIT_CARD", productType, true, creditCardSupported,
+                        "PF-005", creditCardSupported
+                                ? "CreditCard (KBANK) supported for OL; final decision depends on API PF-005."
+                                : "CreditCard (KBANK) is not supported for this product type.");
+            }
+        }
+    }
+
+    private void insertPaymentMethodProductRule(PreparedStatement statement, String channelCode, String productType,
+            boolean supportMultiPeriodPayment, boolean isSupported, String dependencyApi, String remark)
+            throws SQLException {
+        statement.setString(1, channelCode);
+        statement.setString(2, productType);
+        statement.setInt(3, supportMultiPeriodPayment ? 1 : 0);
+        statement.setInt(4, isSupported ? 1 : 0);
+        statement.setString(5, dependencyApi);
+        statement.setString(6, remark);
+        statement.executeUpdate();
+    }
+
+    private void seedDueDateStatusRules(Connection connection) throws SQLException {
+        String sql = """
+                insert into due_date_status_rules (
+                    status_code, description, expression, sort_order
+                ) values (?, ?, ?, ?)
+                on conflict(status_code) do update set
+                    description = excluded.description,
+                    expression = excluded.expression,
+                    sort_order = excluded.sort_order
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            insertDueDateStatusRule(statement, "A", "ใกล้ครบกำหนดชำระ 30 วัน", "(dueDate - T) <= 30 && != 0", 10);
+            insertDueDateStatusRule(statement, "B", "ใกล้ครบกำหนดชำระ (3 วัน)", "(dueDate - T) <= 3 && != 0", 20);
+            insertDueDateStatusRule(statement, "C", "ครบกำหนดชำระวันนี้", "(T - dueDate) == 0", 30);
+            insertDueDateStatusRule(statement, "D", "เกินระยะผ่อนผัน ไม่เกิน 30 วัน", "(T - (dueDate + 31D)) <= 30 && != 0", 40);
+            insertDueDateStatusRule(statement, "E", "ระยะผ่อนผัน มากกว่า 30 วัน", "(T - (dueDate + 31D)) >= 30 && != 0", 50);
+            insertDueDateStatusRule(statement, "F", "ระยะผ่อนผัน มากกว่า 60 วัน", "(T - (dueDate + 31D)) >= 60 && != 0", 60);
+            for (int day = 7; day >= 1; day--) {
+                insertDueDateStatusRule(statement, "G" + day, "ใกล้เลยระยะผ่อนผัน " + day + " วัน",
+                        "(dueDate + 31D - T) == " + day, 70 + (7 - day));
+            }
+            insertDueDateStatusRule(statement, "H", "สิ้นสุดระยะเวลาผ่อนผัน", "(T - (dueDate + 31D)) == 0", 90);
+        }
+    }
+
+    private void insertDueDateStatusRule(PreparedStatement statement, String statusCode, String description,
+            String expression, int sortOrder) throws SQLException {
+        statement.setString(1, statusCode);
+        statement.setString(2, description);
+        statement.setString(3, expression);
+        statement.setInt(4, sortOrder);
+        statement.executeUpdate();
+    }
+
+    private void seedProductPremiumComponentRules(Connection connection) throws SQLException {
+        String sql = """
+                insert into product_premium_component_rules (
+                    product_type, component_code, component_name, data_field, sort_order, is_enabled
+                ) values (?, ?, ?, ?, ?, ?)
+                on conflict(product_type, component_code) do update set
+                    component_name = excluded.component_name,
+                    data_field = excluded.data_field,
+                    sort_order = excluded.sort_order,
+                    is_enabled = excluded.is_enabled
+                """;
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            for (String productType : List.of("OL", "PA", "TAKAFUL", "IND")) {
+                insertPremiumComponentRule(statement, productType, "LIFE", "เบี้ยประกันภัยหลัก", "life_premium", 10);
+                insertPremiumComponentRule(statement, productType, "RIDER", "เบี้ยสัญญาเพิ่มเติม", "rider_premium", 20);
+                insertPremiumComponentRule(statement, productType, "EXTRA", "เบี้ยประกัันภัยเพิ่มพิเศษชีวิต", "extra_premium", 30);
+            }
+            for (String productType : List.of("UL", "LV")) {
+                insertPremiumComponentRule(statement, productType, "LIFE", "เบี้ยประกันภัยหลัก (RP)", "life_premium", 10);
+                insertPremiumComponentRule(statement, productType, "RIDER", "เบี้ยสัญญาเพิ่มเติม", "rider_premium", 20);
+                insertPremiumComponentRule(statement, productType, "TOPUP", "เบี้ยประกันภัยส่วนออมเพิ่มเติม (TP)", "topup_premium", 30);
+                insertPremiumComponentRule(statement, productType, "EXTRA", "เบี้ยประกัันภัยเพิ่มพิเศษชีวิต", "extra_premium", 40);
+            }
+            insertPremiumComponentRule(statement, "UK", "LIFE", "เบี้ยประกันภัยหลักเพื่อความคุ้มครอง (RPP)", "life_premium", 10);
+            insertPremiumComponentRule(statement, "UK", "RSP", "เบี้ยประกันภัยหลักเพื่อการออม (RSP)", "rsp_premium", 20);
+            insertPremiumComponentRule(statement, "UK", "RIDER", "เบี้ยสัญญาเพิ่มเติม", "rider_premium", 30);
+            insertPremiumComponentRule(statement, "UK", "TOPUP", "เบี้ยประกันภัยส่วนออมเพิ่มเติม (TP)", "topup_premium", 40);
+            insertPremiumComponentRule(statement, "UK", "EXTRA", "เบี้ยประกัันภัยเพิ่มพิเศษชีวิต", "extra_premium", 50);
+        }
+    }
+
+    private void insertPremiumComponentRule(PreparedStatement statement, String productType, String componentCode,
+            String componentName, String dataField, int sortOrder) throws SQLException {
+        statement.setString(1, productType);
+        statement.setString(2, componentCode);
+        statement.setString(3, componentName);
+        statement.setString(4, dataField);
+        statement.setInt(5, sortOrder);
+        statement.setInt(6, 1);
         statement.executeUpdate();
     }
 
@@ -846,6 +1029,156 @@ final class TicketDatabase {
         }
     }
 
+    List<PaymentMethodProductRule> findPaymentMethodProductRules() {
+        String sql = """
+                select channel_code, product_type, support_multi_period_payment, is_supported, dependency_api, remark
+                from payment_method_product_rules
+                order by case channel_code
+                    when 'QR' then 1
+                    when 'CREDIT_CARD' then 2
+                    when 'DIRECT_DEBIT' then 3
+                    else 9
+                end, product_type
+                """;
+        List<PaymentMethodProductRule> rules = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                rules.add(paymentMethodProductRule(resultSet));
+            }
+            return rules;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load payment method product rules.", exception);
+        }
+    }
+
+    List<DueDateStatusRule> findDueDateStatusRules() {
+        String sql = """
+                select status_code, description, expression, sort_order
+                from due_date_status_rules
+                order by sort_order
+                """;
+        List<DueDateStatusRule> rules = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                rules.add(new DueDateStatusRule(
+                        resultSet.getString("status_code"),
+                        resultSet.getString("description"),
+                        resultSet.getString("expression"),
+                        resultSet.getInt("sort_order")));
+            }
+            return rules;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load due date status rules.", exception);
+        }
+    }
+
+    List<ProductPremiumComponentRule> findProductPremiumComponentRules() {
+        String sql = """
+                select product_type, component_code, component_name, data_field, sort_order, is_enabled
+                from product_premium_component_rules
+                order by product_type, sort_order
+                """;
+        List<ProductPremiumComponentRule> rules = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql);
+                ResultSet resultSet = statement.executeQuery()) {
+            while (resultSet.next()) {
+                rules.add(productPremiumComponentRule(resultSet));
+            }
+            return rules;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load premium component rules.", exception);
+        }
+    }
+
+    List<AplPremiumComponent> findAplPremiumComponents(String policyNo) {
+        AplPolicy policy = findAplPolicy(policyNo);
+        if (policy == null) {
+            return List.of();
+        }
+        String sql = """
+                select product_type, component_code, component_name, data_field, sort_order, is_enabled
+                from product_premium_component_rules
+                where product_type = ? and is_enabled = 1
+                order by sort_order
+                """;
+        List<AplPremiumComponent> components = new ArrayList<>();
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, policy.productType());
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    ProductPremiumComponentRule rule = productPremiumComponentRule(resultSet);
+                    components.add(new AplPremiumComponent(rule.productType(), rule.componentCode(),
+                            rule.componentName(), rule.dataField(), premiumAmount(policy, rule.dataField())));
+                }
+            }
+            return components;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL premium components.", exception);
+        }
+    }
+
+    DueDateStatus evaluateDueDateStatus(String dueDateText) {
+        if (dueDateText == null || dueDateText.isBlank()) {
+            return new DueDateStatus("", "No due date", "");
+        }
+        LocalDate today = LocalDate.now();
+        LocalDate dueDate = LocalDate.parse(dueDateText);
+        LocalDate graceEnd = dueDate.plusDays(31);
+        long daysUntilDue = ChronoUnit.DAYS.between(today, dueDate);
+        long daysAfterGrace = ChronoUnit.DAYS.between(graceEnd, today);
+        long daysUntilGraceEnd = ChronoUnit.DAYS.between(today, graceEnd);
+        String code;
+        if (daysUntilDue == 0) {
+            code = "C";
+        } else if (daysUntilDue > 0 && daysUntilDue <= 3) {
+            code = "B";
+        } else if (daysUntilDue > 0 && daysUntilDue <= 30) {
+            code = "A";
+        } else if (daysUntilGraceEnd >= 1 && daysUntilGraceEnd <= 7) {
+            code = "G" + daysUntilGraceEnd;
+        } else if (daysAfterGrace == 0) {
+            code = "H";
+        } else if (daysAfterGrace > 60) {
+            code = "F";
+        } else if (daysAfterGrace > 30) {
+            code = "E";
+        } else if (daysAfterGrace > 0) {
+            code = "D";
+        } else {
+            code = "A";
+        }
+        for (DueDateStatusRule rule : findDueDateStatusRules()) {
+            if (rule.statusCode().equals(code)) {
+                return new DueDateStatus(rule.statusCode(), rule.description(), rule.expression());
+            }
+        }
+        return new DueDateStatus(code, "", "");
+    }
+
+    boolean isPaymentMethodSupported(String channelCode, String productType) {
+        String sql = """
+                select is_supported
+                from payment_method_product_rules
+                where channel_code = ? and product_type = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, channelCode);
+            statement.setString(2, productType);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                return resultSet.next() && resultSet.getInt("is_supported") == 1;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to check payment method product rule.", exception);
+        }
+    }
+
     AplEligibility checkAplEligibility(String policyNo) {
         AplPolicy policy = findAplPolicy(policyNo);
         if (policy == null) {
@@ -879,8 +1212,9 @@ final class TicketDatabase {
 
     List<AplPolicy> findAplPolicies() {
         String sql = """
-                select policy_no, customer_name, app_source, core_system, apl_days,
-                       base_premium, rider_premium, interest_amount, allow_credit_card, status
+                select policy_no, customer_name, app_source, core_system, product_type, due_date, apl_days,
+                       base_premium, rider_premium, extra_premium, topup_premium, rsp_premium,
+                       interest_amount, allow_credit_card, status
                 from apl_policies
                 order by policy_no
                 """;
@@ -899,8 +1233,9 @@ final class TicketDatabase {
 
     AplPolicy findAplPolicy(String policyNo) {
         String sql = """
-                select policy_no, customer_name, app_source, core_system, apl_days,
-                       base_premium, rider_premium, interest_amount, allow_credit_card, status
+                select policy_no, customer_name, app_source, core_system, product_type, due_date, apl_days,
+                       base_premium, rider_premium, extra_premium, topup_premium, rsp_premium,
+                       interest_amount, allow_credit_card, status
                 from apl_policies
                 where policy_no = ?
                 """;
@@ -920,7 +1255,9 @@ final class TicketDatabase {
         if (policy == null) {
             return null;
         }
-        double totalPremium = policy.basePremium() + policy.riderPremium();
+        double totalPremium = findAplPremiumComponents(policyNo).stream()
+                .mapToDouble(AplPremiumComponent::amount)
+                .sum();
         double totalAmount = totalPremium + policy.interestAmount();
         return new AplQuote(
                 policy.policyNo(),
@@ -930,7 +1267,7 @@ final class TicketDatabase {
                 totalPremium,
                 totalAmount,
                 policy.interestAmount() > 0,
-                policy.allowCreditCard());
+                policy.allowCreditCard() && isPaymentMethodSupported("CREDIT_CARD", policy.productType()));
     }
 
     AplPayment createAplPayment(String policyNo, String collectionMethod) {
@@ -938,11 +1275,15 @@ final class TicketDatabase {
         if (policy == null) {
             throw new IllegalArgumentException("APL policy not found: " + policyNo);
         }
-        if ("CREDIT_CARD".equals(collectionMethod) && !policy.allowCreditCard()) {
-            throw new IllegalArgumentException("Credit Card is not allowed for policy: " + policyNo);
-        }
         if (!List.of("QR", "CREDIT_CARD", "DIRECT_DEBIT", "CHEQUE").contains(collectionMethod)) {
             throw new IllegalArgumentException("Unsupported collection method: " + collectionMethod);
+        }
+        if (!isPaymentMethodSupported(collectionMethod, policy.productType())) {
+            throw new IllegalArgumentException(collectionMethod + " is not supported for product type "
+                    + policy.productType() + " on policy: " + policyNo);
+        }
+        if ("CREDIT_CARD".equals(collectionMethod) && !policy.allowCreditCard()) {
+            throw new IllegalArgumentException("Credit Card is not allowed by PF-005/product rule for policy: " + policyNo);
         }
 
         AplQuote quote = quoteAplPayment(policyNo);
@@ -964,12 +1305,10 @@ final class TicketDatabase {
             default -> collectionMethod;
         };
         String moduleType = "RYP_APL";
-        String reconcileStatus = "MATCHED";
-        String transactionStatus = policy.coreSystem() + "_UPDATED";
-        String glStatus = "GL_READY";
-        String smsStatus = ("QR".equals(collectionMethod) || "CREDIT_CARD".equals(collectionMethod))
-                ? "SMS_QUEUED"
-                : "SMS_NOT_REQUIRED";
+        String reconcileStatus = "WAIT_PAYMENT_RESULT";
+        String transactionStatus = "WAIT_PAYMENT";
+        String glStatus = "GL_HOLD";
+        String smsStatus = "SMS_PENDING";
 
         String sql = """
                 insert into apl_payments (
@@ -977,8 +1316,8 @@ final class TicketDatabase {
                     reference_one, reference_two, reference_three, collection_method,
                     payment_type_desc, module_type, base_premium, rider_premium,
                     interest_amount, total_amount, receipt_premium_no, receipt_interest_no,
-                    reconcile_status, transaction_status, gl_status, sms_status, created_at
-                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                    reconcile_status, transaction_status, gl_status, sms_status, payment_status, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'WAIT_CALLBACK', datetime('now'))
                 """;
         try (Connection connection = connect();
                 PreparedStatement statement = connection.prepareStatement(sql)) {
@@ -1106,6 +1445,141 @@ final class TicketDatabase {
         }
     }
 
+    void confirmAplReceiptPrint(String receiptNo, String paymentId) {
+        String batchNo = "PRINT-" + java.time.LocalDate.now().toString().replace("-", "");
+        String sql = """
+                insert into apl_receipt_prints (
+                    receipt_no, payment_id, print_batch_no, print_status, confirmed_at, created_at
+                ) values (?, ?, ?, 'CONFIRMED', datetime('now'), datetime('now'))
+                on conflict(receipt_no) do update set
+                    print_batch_no = excluded.print_batch_no,
+                    print_status = 'CONFIRMED',
+                    confirmed_at = datetime('now')
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, receiptNo);
+            statement.setString(2, paymentId);
+            statement.setString(3, batchNo);
+            statement.executeUpdate();
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to confirm APL receipt print.", exception);
+        }
+    }
+
+    AplPayment approveAplReconcile(String paymentId) {
+        AplPayment payment = findAplPayment(paymentId);
+        if (payment == null) {
+            throw new IllegalArgumentException("APL payment not found: " + paymentId);
+        }
+        AplPolicy policy = findAplPolicy(payment.policyNo());
+        String transactionStatus = (policy == null ? "CORE" : policy.coreSystem()) + "_UPDATED";
+        String smsStatus = ("QR".equals(payment.collectionMethod()) || "CREDIT_CARD".equals(payment.collectionMethod()))
+                ? "SMS_QUEUED"
+                : "SMS_NOT_REQUIRED";
+        String sql = """
+                update apl_payments
+                set reconcile_status = 'MATCHED',
+                    transaction_status = ?,
+                    gl_status = 'GL_READY',
+                    sms_status = ?,
+                    processed_at = coalesce(processed_at, datetime('now'))
+                where payment_id = ?
+                """;
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, transactionStatus);
+            statement.setString(2, smsStatus);
+            statement.setString(3, paymentId);
+            statement.executeUpdate();
+            return findAplPayment(paymentId);
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to approve APL reconcile.", exception);
+        }
+    }
+
+    List<AplReceipt> findAplReceipts() {
+        List<AplReceipt> receipts = new ArrayList<>();
+        for (AplPayment payment : findAplPayments()) {
+            receipts.add(receiptFromPayment(payment, payment.receiptPremiumNo(), "PREMIUM_RECEIPT",
+                    payment.interestAmount() > 0 ? "INTEREST" : "NO_INTEREST", "Premium owner", payment.totalAmount()));
+            if (payment.receiptInterestNo() != null && !payment.receiptInterestNo().isBlank()) {
+                receipts.add(receiptFromPayment(payment, payment.receiptInterestNo(), "INTEREST_GENERAL_RECEIPT",
+                        "INTEREST", "General receipt owner", payment.interestAmount()));
+            }
+        }
+        return receipts;
+    }
+
+    private AplReceipt receiptFromPayment(AplPayment payment, String receiptNo, String receiptType,
+            String printGroup, String printOwner, double amount) {
+        String sql = """
+                select print_batch_no, print_status
+                from apl_receipt_prints
+                where receipt_no = ?
+                """;
+        String batchNo = "";
+        String printStatus = "WAIT_PRINT";
+        try (Connection connection = connect();
+                PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, receiptNo);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    batchNo = resultSet.getString("print_batch_no");
+                    printStatus = resultSet.getString("print_status");
+                }
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Unable to load APL receipt print status.", exception);
+        }
+        if (!"MATCHED".equals(payment.reconcileStatus())) {
+            printStatus = "HOLD_RECONCILE";
+        }
+        return new AplReceipt(receiptNo, payment.paymentId(), payment.policyNo(), receiptType, printGroup,
+                printOwner, batchNo, printStatus, payment.reconcileStatus(), amount, payment.createdAt());
+    }
+
+    List<AplReconcileItem> findAplReconcileItems() {
+        List<AplReconcileItem> items = new ArrayList<>();
+        for (AplPayment payment : findAplPayments()) {
+            double paidAmount = payment.paidAmount();
+            double diffAmount = paidAmount == 0 ? payment.totalAmount() : payment.totalAmount() - paidAmount;
+            String reasonCode = switch (payment.reconcileStatus()) {
+                case "MATCHED" -> "AMOUNT_MATCHED";
+                case "UNMATCHED" -> "PAYMENT_AMOUNT_MISMATCH";
+                case "FAILED" -> "PAYMENT_FAILED";
+                default -> "WAIT_PAYMENT_RESULT";
+            };
+            String owner = "UNMATCHED".equals(payment.reconcileStatus()) ? "Collection Team" : "System";
+            String note = "UNMATCHED".equals(payment.reconcileStatus())
+                    ? "Review paid amount before receipt/GL posting."
+                    : "Auto reconcile by payment reference and amount.";
+            items.add(new AplReconcileItem(payment.paymentId(), payment.policyNo(), payment.totalAmount(), paidAmount,
+                    diffAmount, payment.collectionId() + "/" + payment.trxId(), payment.reconcileStatus(),
+                    reasonCode, owner, note, payment.createdAt()));
+        }
+        return items;
+    }
+
+    List<AplGlTransaction> findAplGlTransactions() {
+        List<AplGlTransaction> entries = new ArrayList<>();
+        for (AplPayment payment : findAplPayments()) {
+            String postingStatus = "GL_READY".equals(payment.glStatus()) ? "READY" : "HOLD";
+            entries.add(new AplGlTransaction("GL-" + payment.paymentId() + "-LIFE", payment.paymentId(),
+                    payment.policyNo(), "LIFE_PREMIUM", payment.payPeriod(), "110101-CASH",
+                    "410101-LIFE_PREMIUM", payment.basePremium(), postingStatus, payment.createdAt()));
+            entries.add(new AplGlTransaction("GL-" + payment.paymentId() + "-RIDER", payment.paymentId(),
+                    payment.policyNo(), "RIDER_PREMIUM", payment.payPeriod(), "110101-CASH",
+                    "410102-RIDER_PREMIUM", payment.riderPremium(), postingStatus, payment.createdAt()));
+            if (payment.interestAmount() > 0) {
+                entries.add(new AplGlTransaction("GL-" + payment.paymentId() + "-INTEREST", payment.paymentId(),
+                        payment.policyNo(), "APL_INTEREST", "TOTAL", "110101-CASH",
+                        "420201-APL_INTEREST", payment.interestAmount(), postingStatus, payment.createdAt()));
+            }
+        }
+        return entries;
+    }
+
     private PaymentChannel paymentChannel(ResultSet resultSet) throws SQLException {
         return new PaymentChannel(
                 resultSet.getString("channel_code"),
@@ -1118,15 +1592,51 @@ final class TicketDatabase {
                 resultSet.getString("remark"));
     }
 
+    private PaymentMethodProductRule paymentMethodProductRule(ResultSet resultSet) throws SQLException {
+        return new PaymentMethodProductRule(
+                resultSet.getString("channel_code"),
+                resultSet.getString("product_type"),
+                resultSet.getInt("support_multi_period_payment") == 1,
+                resultSet.getInt("is_supported") == 1,
+                resultSet.getString("dependency_api"),
+                resultSet.getString("remark"));
+    }
+
+    private ProductPremiumComponentRule productPremiumComponentRule(ResultSet resultSet) throws SQLException {
+        return new ProductPremiumComponentRule(
+                resultSet.getString("product_type"),
+                resultSet.getString("component_code"),
+                resultSet.getString("component_name"),
+                resultSet.getString("data_field"),
+                resultSet.getInt("sort_order"),
+                resultSet.getInt("is_enabled") == 1);
+    }
+
+    private double premiumAmount(AplPolicy policy, String dataField) {
+        return switch (dataField) {
+            case "life_premium" -> policy.basePremium();
+            case "rider_premium" -> policy.riderPremium();
+            case "extra_premium" -> policy.extraPremium();
+            case "topup_premium" -> policy.topupPremium();
+            case "rsp_premium" -> policy.rspPremium();
+            default -> 0;
+        };
+    }
+
     private AplPolicy aplPolicy(ResultSet resultSet) throws SQLException {
         return new AplPolicy(
                 resultSet.getString("policy_no"),
                 resultSet.getString("customer_name"),
                 resultSet.getString("app_source"),
                 resultSet.getString("core_system"),
+                resultSet.getString("product_type"),
+                resultSet.getString("due_date"),
                 resultSet.getInt("apl_days"),
                 resultSet.getDouble("base_premium"),
                 resultSet.getDouble("rider_premium"),
+                resultSet.getDouble("extra_premium"),
+                resultSet.getDouble("topup_premium"),
+                resultSet.getDouble("rsp_premium"),
                 resultSet.getDouble("interest_amount"),
                 resultSet.getInt("allow_credit_card") == 1,
                 resultSet.getString("status"));
@@ -1745,6 +2255,45 @@ record PaymentChannel(
         String remark) {
 }
 
+record PaymentMethodProductRule(
+        String channelCode,
+        String productType,
+        boolean supportMultiPeriodPayment,
+        boolean isSupported,
+        String dependencyApi,
+        String remark) {
+}
+
+record DueDateStatusRule(
+        String statusCode,
+        String description,
+        String expression,
+        int sortOrder) {
+}
+
+record DueDateStatus(
+        String statusCode,
+        String description,
+        String expression) {
+}
+
+record ProductPremiumComponentRule(
+        String productType,
+        String componentCode,
+        String componentName,
+        String dataField,
+        int sortOrder,
+        boolean isEnabled) {
+}
+
+record AplPremiumComponent(
+        String productType,
+        String componentCode,
+        String componentName,
+        String dataField,
+        double amount) {
+}
+
 record AplEligibility(
         String policyNo,
         boolean eligible,
@@ -1771,9 +2320,14 @@ record AplPolicy(
         String customerName,
         String appSource,
         String coreSystem,
+        String productType,
+        String dueDate,
         int aplDays,
         double basePremium,
         double riderPremium,
+        double extraPremium,
+        double topupPremium,
+        double rspPremium,
         double interestAmount,
         boolean allowCreditCard,
         String status) {
@@ -1817,6 +2371,47 @@ record AplPayment(
         double paidAmount,
         String responseCode,
         String processedAt,
+        String createdAt) {
+}
+
+record AplReceipt(
+        String receiptNo,
+        String paymentId,
+        String policyNo,
+        String receiptType,
+        String printGroup,
+        String printOwner,
+        String printBatchNo,
+        String printStatus,
+        String reconcileStatus,
+        double amount,
+        String createdAt) {
+}
+
+record AplReconcileItem(
+        String paymentId,
+        String policyNo,
+        double expectedAmount,
+        double paidAmount,
+        double diffAmount,
+        String matchKey,
+        String reconcileStatus,
+        String reasonCode,
+        String owner,
+        String note,
+        String createdAt) {
+}
+
+record AplGlTransaction(
+        String glTransactionId,
+        String paymentId,
+        String policyNo,
+        String premiumType,
+        String installmentNo,
+        String debitAccount,
+        String creditAccount,
+        double amount,
+        String postingStatus,
         String createdAt) {
 }
 
