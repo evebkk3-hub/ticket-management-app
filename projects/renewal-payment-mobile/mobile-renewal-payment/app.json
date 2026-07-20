@@ -2,7 +2,7 @@
   "expo": {
     "name": "Renewal Payment",
     "slug": "renewal-payment",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "orientation": "landscape",
     "scheme": "renewal-payment",
     "userInterfaceStyle": "light",
@@ -11,11 +11,16 @@
       "supportsTablet": true,
       "requireFullScreen": true,
       "infoPlist": {
-        "NSPhotoLibraryAddUsageDescription": "อนุญาตให้บันทึกรูป QR Code สำหรับชำระเบี้ยลงในรูปภาพ"
+        "NSPhotoLibraryAddUsageDescription": "อนุญาตให้บันทึกรูป QR Code สำหรับชำระเบี้ยลงในรูปภาพ",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.thaibaisri.renewalpayment"
+      "package": "com.thaibaisri.renewalpayment",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "plugins": [
       [
@@ -31,6 +36,12 @@
     ],
     "web": {
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fee5d497-cb10-4251-91ec-5729594aec47"
+      }
+    },
+    "owner": "eveth9999"
   }
 }

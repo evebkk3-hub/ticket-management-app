@@ -8,8 +8,8 @@ import {
   ScrollView,
   StatusBar,
   StyleSheet,
-  Text,
-  TextInput,
+  Text as NativeText,
+  TextInput as NativeTextInput,
   useWindowDimensions,
   View
 } from "react-native";
@@ -37,19 +37,29 @@ const MUTED = "#7b858d";
 const SOFT_BLUE = "#e2f7ff";
 const PAGE_BG = "#f2f4f5";
 const DESIGN_WIDTH = 1194;
-const DESIGN_HEIGHT = 1693.5;
+const DESIGN_HEIGHT = 834;
 const FONT_FAMILY = "NotoSansThai_400Regular";
 const Stack = createNativeStackNavigator();
 
-async function copyPhoneNumber(phone) {
-  await Clipboard.setStringAsync(phone);
-  Alert.alert("คัดลอกเบอร์โทรแล้ว", phone);
+function resolveThaiFont(style) {
+  const flattened = StyleSheet.flatten(style) || {};
+  const rawWeight = flattened.fontWeight;
+  const numericWeight = rawWeight === "bold" ? 700 : Number(rawWeight || 400);
+  if (numericWeight >= 700) return "NotoSansThai_700Bold";
+  if (numericWeight >= 600) return "NotoSansThai_600SemiBold";
+  if (numericWeight >= 500) return "NotoSansThai_500Medium";
+  return FONT_FAMILY;
 }
 
-Text.defaultProps = Text.defaultProps || {};
-Text.defaultProps.style = [Text.defaultProps.style, { fontFamily: FONT_FAMILY }];
-TextInput.defaultProps = TextInput.defaultProps || {};
-TextInput.defaultProps.style = [TextInput.defaultProps.style, { fontFamily: FONT_FAMILY }];
+const Text = React.forwardRef(({ style, ...props }, ref) => (
+  <NativeText ref={ref} {...props} style={[style, { fontFamily: resolveThaiFont(style), fontWeight: "normal" }]} />
+));
+Text.displayName = "Text";
+
+const TextInput = React.forwardRef(({ style, ...props }, ref) => (
+  <NativeTextInput ref={ref} {...props} style={[style, { fontFamily: resolveThaiFont(style), fontWeight: "normal" }]} />
+));
+TextInput.displayName = "TextInput";
 
 const paymentRows = [
   ["male", "ธนาธิป รุ่งมี...", "082-345-6789", "1234567891", "01/12", "999,999,999", "13 ส.ค. 69", "wait", "รอชำระเบี้ย", "ครบกำหนด", true],
@@ -100,8 +110,18 @@ const provinces = [
   }
 ];
 
+const paymentAreaAssignments = paymentRows.map((_, index) => {
+  const province = provinces[index < 5 ? 0 : 1];
+  const area = province.areas[index % province.areas.length];
+  return {
+    province: province.name,
+    district: area.name,
+    subdistrict: area.subdistricts[index % area.subdistricts.length]
+  };
+});
+
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     NotoSansThai_400Regular,
     NotoSansThai_500Medium,
     NotoSansThai_600SemiBold,
@@ -110,11 +130,12 @@ export default function App() {
   const [databaseHistoryRows, setDatabaseHistoryRows] = useState(null);
   const [databaseError, setDatabaseError] = useState("");
   const [areaModalVisible, setAreaModalVisible] = useState(false);
+  const [areaFilter, setAreaFilter] = useState(null);
   const [menuVisible, setMenuVisible] = useState(false);
-  const { width: viewportWidth } = useWindowDimensions();
-  const canvasScale = Math.min(viewportWidth / DESIGN_WIDTH, 1);
-  const scaledLeft = -(DESIGN_WIDTH * (1 - canvasScale)) / 2;
-  const scaledTop = -(DESIGN_HEIGHT * (1 - canvasScale)) / 2;
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const canvasScale = Math.min(viewportWidth / DESIGN_WIDTH, viewportHeight / DESIGN_HEIGHT, 1);
+  const scaledLeft = (viewportWidth - DESIGN_WIDTH) / 2;
+  const scaledTop = (viewportHeight - DESIGN_HEIGHT) / 2;
 
   useEffect(() => {
     let active = true;
@@ -132,13 +153,21 @@ export default function App() {
     return () => { active = false; };
   }, []);
 
+  if (fontError) {
+    return <View style={styles.startupState}><NativeText style={styles.startupError}>โหลดแบบอักษรไม่สำเร็จ กรุณาเปิดแอปใหม่</NativeText></View>;
+  }
+
   if (!fontsLoaded) {
-    return null;
+    return <View style={styles.startupState}><NativeText style={styles.startupText}>กำลังเตรียมข้อมูล...</NativeText></View>;
   }
 
   function drawerNavigate(navigation, nextScreen) {
-    const routes = { dashboard: "Dashboard", list: "Payments", customers: "Customers", historyDetail: "Payments", confirm: "Payments", qr: "Payments" };
-    navigation.navigate(routes[nextScreen] || "Dashboard");
+    if (nextScreen === "history") {
+      navigation.navigate("Payments", { initialTab: "history", navigationRequest: Date.now() });
+    } else {
+      const routes = { dashboard: "Dashboard", list: "Payments", customers: "Customers", confirm: "Confirm", qr: "QrPayment" };
+      navigation.navigate(routes[nextScreen] || "Dashboard");
+    }
     setMenuVisible(false);
   }
 
@@ -147,7 +176,7 @@ export default function App() {
       <SafeAreaView style={styles.app}>
         <StatusBar barStyle="dark-content" />
         <View style={[styles.designCanvas, { left: scaledLeft, top: scaledTop, transform: [{ scale: canvasScale }] }]}>{content}</View>
-        <AreaFilterModal visible={areaModalVisible} onClose={() => setAreaModalVisible(false)} />
+        <AreaFilterModal visible={areaModalVisible} onClose={() => setAreaModalVisible(false)} onApply={(filter) => { setAreaFilter(filter); setAreaModalVisible(false); }} />
         <NavigationDrawer visible={menuVisible} activeScreen={activeScreen} onClose={() => setMenuVisible(false)} onNavigate={(next) => drawerNavigate(navigation, next)} />
         {databaseError ? <View style={styles.databaseWarning}><Text style={styles.databaseWarningText}>ใช้ข้อมูลสำรอง: SQLite ยังไม่พร้อมบนอุปกรณ์นี้</Text></View> : null}
       </SafeAreaView>
@@ -157,18 +186,18 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Dashboard" screenOptions={{ headerShown: false, animation: "fade" }}>
-        <Stack.Screen name="Dashboard">{({ navigation }) => page(<DashboardScreen onOpenRenewal={() => navigation.navigate("Payments")} />, "dashboard", navigation)}</Stack.Screen>
-        <Stack.Screen name="Payments">{({ navigation }) => page(<PaymentListScreen historyRecords={databaseHistoryRows || paymentHistoryRows} onBack={() => navigation.goBack()} onPay={() => navigation.navigate("Confirm")} onOpenHistory={(record) => navigation.navigate("HistoryDetail", { record })} onMenu={() => setMenuVisible(true)} onOpenAreaFilter={() => setAreaModalVisible(true)} />, "list", navigation)}</Stack.Screen>
+        <Stack.Screen name="Dashboard">{({ navigation }) => page(<DashboardScreen onOpenRenewal={(initialSummary = "ready") => navigation.navigate("Payments", { initialTab: "payments", initialSummary, navigationRequest: Date.now() })} onOpenCustomers={() => navigation.navigate("Customers")} />, "dashboard", navigation)}</Stack.Screen>
+        <Stack.Screen name="Payments">{({ navigation, route }) => page(<PaymentListScreen initialTab={route.params?.initialTab} initialSummary={route.params?.initialSummary} navigationRequest={route.params?.navigationRequest} areaFilter={areaFilter} historyRecords={databaseHistoryRows || paymentHistoryRows} onBack={() => navigation.goBack()} onPay={(payment) => navigation.navigate("Confirm", { payment })} onOpenHistory={(record) => navigation.navigate("HistoryDetail", { record })} onMenu={() => setMenuVisible(true)} onOpenAreaFilter={() => setAreaModalVisible(true)} />, route.params?.initialTab === "history" ? "history" : "list", navigation)}</Stack.Screen>
         <Stack.Screen name="HistoryDetail">{({ navigation, route }) => page(<PaymentHistoryDetailScreen record={route.params?.record} onBack={() => navigation.goBack()} onMenu={() => setMenuVisible(true)} />, "historyDetail", navigation)}</Stack.Screen>
-        <Stack.Screen name="Confirm">{({ navigation }) => page(<PaymentConfirmScreen onBack={() => navigation.goBack()} onConfirm={() => navigation.navigate("QrPayment")} onMenu={() => setMenuVisible(true)} />, "confirm", navigation)}</Stack.Screen>
-        <Stack.Screen name="QrPayment">{({ navigation }) => page(<QrPaymentScreen onBack={() => navigation.goBack()} onMenu={() => setMenuVisible(true)} />, "qr", navigation)}</Stack.Screen>
-        <Stack.Screen name="Customers">{({ navigation }) => page(<CustomerListScreen onBack={() => navigation.goBack()} onMenu={() => setMenuVisible(true)} />, "customers", navigation)}</Stack.Screen>
+        <Stack.Screen name="Confirm">{({ navigation, route }) => page(<PaymentConfirmScreen payment={route.params?.payment} onBack={() => navigation.goBack()} onConfirm={(checkout) => navigation.navigate("QrPayment", checkout)} onMenu={() => setMenuVisible(true)} />, "confirm", navigation)}</Stack.Screen>
+        <Stack.Screen name="QrPayment">{({ navigation, route }) => page(<QrPaymentScreen payment={route.params?.payment} installmentCount={route.params?.installmentCount} onBack={() => navigation.goBack()} onMenu={() => setMenuVisible(true)} />, "qr", navigation)}</Stack.Screen>
+        <Stack.Screen name="Customers">{({ navigation }) => page(<CustomerListScreen onBack={() => navigation.goBack()} onMenu={() => setMenuVisible(true)} onOpenPayment={(payment) => navigation.navigate("Confirm", { payment })} />, "customers", navigation)}</Stack.Screen>
       </Stack.Navigator>
     </NavigationContainer>
   );
 }
 
-function DashboardScreen({ onOpenRenewal }) {
+function DashboardScreen({ onOpenRenewal, onOpenCustomers }) {
   const statuses = [
     ["24", "ครบกำหนด\nชำระเบี้ย"], ["10", "อยู่ในระยะเวลา\nผ่อนผัน"], ["4", "ใกล้สิ้นสุดเวลา\nผ่อนผัน"],
     ["3", "เกินระยะเวลา\nผ่อนผัน"], ["10", "รอตรวจสอบ\nการชำระเบี้ย"], ["2", "หักอัตโนมัติ\nไม่สำเร็จ"]
@@ -178,7 +207,7 @@ function DashboardScreen({ onOpenRenewal }) {
     <View style={styles.dashboard}>
       <View style={styles.dashboardSidebar}>
         {menu.map(([icon, label], index) => (
-          <Pressable key={label} onPress={() => index === 0 ? null : Alert.alert(label, "เปิดเมนู " + label)} style={[styles.dashboardMenuItem, index === 3 && styles.dashboardMenuActive]}>
+          <Pressable key={label} onPress={() => index === 3 ? onOpenCustomers() : index === 0 ? null : Alert.alert(label, "เปิดเมนู " + label)} style={[styles.dashboardMenuItem, index === 3 && styles.dashboardMenuActive]}>
             <Ionicons name={icon} size={25} color="#fff" /><Text style={styles.dashboardMenuText}>{label}</Text>
           </Pressable>
         ))}
@@ -193,18 +222,18 @@ function DashboardScreen({ onOpenRenewal }) {
           <View style={styles.dashboardMainColumn}>
             <View style={styles.dashboardCard}>
               <View style={styles.dashboardCardTitle}><Ionicons name="document-text-outline" size={22} color="#073f55" /><Text style={styles.dashboardCardTitleText}>เมนูลัด</Text></View>
-              <Pressable onPress={onOpenRenewal} style={({ pressed }) => [styles.dashboardRenewalWidget, pressed && styles.copyPressed]}>
+              <Pressable onPress={() => onOpenRenewal("ready")} style={({ pressed }) => [styles.dashboardRenewalWidget, pressed && styles.copyPressed]}>
                 <Ionicons name="hand-left-outline" size={33} color={BLUE} /><Text style={styles.dashboardRenewalText}>ชำระเบี้ยปีต่อ</Text>
               </Pressable>
             </View>
             <View style={styles.dashboardCard}>
-              <View style={styles.dashboardCardHeader}><View style={styles.dashboardCardTitle}><Ionicons name="cash-outline" size={22} color="#073f55" /><Text style={styles.dashboardCardTitleText}>ชำระเบี้ยปีต่อ</Text></View><Pressable onPress={onOpenRenewal}><Text style={styles.dashboardAll}>ทั้งหมด  〉</Text></Pressable></View>
-              <View style={styles.dashboardStatuses}>{statuses.map(([count, label], index) => <Pressable key={label} onPress={onOpenRenewal} style={({ pressed }) => [styles.dashboardStatus, pressed && styles.copyPressed]}><Text style={styles.dashboardStatusCount}>{count}</Text><Text style={styles.dashboardStatusLabel}>{label}</Text></Pressable>)}</View>
+              <View style={styles.dashboardCardHeader}><View style={styles.dashboardCardTitle}><Ionicons name="cash-outline" size={22} color="#073f55" /><Text style={styles.dashboardCardTitleText}>ชำระเบี้ยปีต่อ</Text></View><Pressable onPress={() => onOpenRenewal("ready")}><Text style={styles.dashboardAll}>ทั้งหมด  〉</Text></Pressable></View>
+              <View style={styles.dashboardStatuses}>{statuses.map(([count, label], index) => <Pressable key={label} onPress={() => onOpenRenewal(index < 3 ? "ready" : index === 3 ? "overdue" : "lapsed")} style={({ pressed }) => [styles.dashboardStatus, pressed && styles.copyPressed]}><Text style={styles.dashboardStatusCount}>{count}</Text><Text style={styles.dashboardStatusLabel}>{label}</Text></Pressable>)}</View>
             </View>
           </View>
           <View style={styles.dashboardFamilyCard}>
             <View style={styles.dashboardCardTitle}><Ionicons name="id-card-outline" size={22} color="#073f55" /><Text style={styles.dashboardCardTitleText}>บัญชีครอบครัว Life Verse</Text></View>
-            <View style={styles.dashboardFamilyActions}><Pressable onPress={() => Alert.alert("บัญชีครอบครัว", "จัดการบัญชีครอบครัว")} style={styles.dashboardFamilyAction}><Text style={styles.dashboardFamilyText}>จัดการ\nบัญชีครอบครัว</Text><Ionicons name="chevron-forward" size={22} color={BLUE} /></Pressable><Pressable onPress={() => Alert.alert("รายการ", "รายการกำลังดำเนินการ")} style={styles.dashboardFamilyAction}><Text style={styles.dashboardFamilyText}>รายการ\nกำลังดำเนินการ</Text><Ionicons name="chevron-forward" size={22} color={BLUE} /></Pressable></View>
+            <View style={styles.dashboardFamilyActions}><Pressable onPress={onOpenCustomers} style={styles.dashboardFamilyAction}><Text style={styles.dashboardFamilyText}>จัดการ\nบัญชีครอบครัว</Text><Ionicons name="chevron-forward" size={22} color={BLUE} /></Pressable><Pressable onPress={() => onOpenRenewal("ready")} style={styles.dashboardFamilyAction}><Text style={styles.dashboardFamilyText}>รายการ\nกำลังดำเนินการ</Text><Ionicons name="chevron-forward" size={22} color={BLUE} /></Pressable></View>
           </View>
         </View>
       </ScrollView>
@@ -217,16 +246,16 @@ function AppHeader({ title, onBack, onMenu, rightAction }) {
     <View style={styles.header}>
       <View style={styles.headerLeftControls}>
         <Pressable style={styles.menuButton} onPress={onMenu}>
-          <Text style={styles.menuIcon}>☰</Text>
+          <Ionicons name="menu-outline" size={31} color={BLUE} />
         </Pressable>
         <Pressable style={styles.headerBackButton} onPress={onBack}>
-          <Text style={styles.backIcon}>‹</Text>
+          <Ionicons name="chevron-back" size={32} color={BLUE} />
         </Pressable>
       </View>
       <Text style={styles.headerTitle}>{title}</Text>
       {rightAction ? (
         <Pressable style={styles.headerRightAction} onPress={rightAction.onPress}>
-          <Text style={styles.headerRightActionIcon}>⇧</Text>
+          <Ionicons name="share-outline" size={25} color={BLUE} />
           <Text style={styles.headerRightActionText}>{rightAction.label}</Text>
         </Pressable>
       ) : (
@@ -236,20 +265,33 @@ function AppHeader({ title, onBack, onMenu, rightAction }) {
   );
 }
 
-function CustomerListScreen({ onBack, onMenu }) {
+function CustomerListScreen({ onBack, onMenu, onOpenPayment }) {
   const [customerQuery, setCustomerQuery] = useState("");
+  const [submittedCustomerQuery, setSubmittedCustomerQuery] = useState("");
   const [customerSegment, setCustomerSegment] = useState("all");
   const customerSegments = [
     ["all", "ทั้งหมด"], ["waiting", "รอชำส่งเบี้ย"], ["sending", "รอนำส่งเบี้ย"], ["blocked", "ไม่สามารถชำระบน TL After+"]
   ];
+  const customers = useMemo(() => {
+    const needle = submittedCustomerQuery.trim().toLocaleLowerCase("th");
+    return paymentRows.filter((row) => {
+      const matchesQuery = !needle || row[1].toLocaleLowerCase("th").includes(needle) || row[3].includes(needle);
+      const matchesSegment = customerSegment === "all"
+        || (customerSegment === "waiting" && row[7] === "wait")
+        || (customerSegment === "sending" && row[7] === "auto")
+        || (customerSegment === "blocked" && !row[10]);
+      return matchesQuery && matchesSegment;
+    });
+  }, [customerSegment, submittedCustomerQuery]);
+
   return (
     <View style={styles.screen}>
       <View style={styles.customerHeader}>
         <Pressable style={styles.customerHeaderButton} onPress={onMenu}>
-          <Text style={styles.customerHeaderIcon}>☰</Text>
+          <Ionicons name="menu-outline" size={31} color={BLUE} />
         </Pressable>
         <Pressable style={styles.customerHeaderButton} onPress={onBack}>
-          <Text style={styles.customerBackIcon}>‹</Text>
+          <Ionicons name="chevron-back" size={32} color={BLUE} />
         </Pressable>
         <Text style={styles.customerHeaderTitle}>รายชื่อลูกค้า</Text>
         <View style={styles.customerHeaderTail} />
@@ -258,16 +300,17 @@ function CustomerListScreen({ onBack, onMenu }) {
         <View style={styles.customerPanel}>
           <View style={styles.customerToolbar}>
             <View style={styles.customerSearchBox}>
-              <Text style={styles.customerSearchIcon}>⌕</Text>
+              <Ionicons name="search-outline" size={28} color="#75818a" />
               <TextInput
                 value={customerQuery}
                 onChangeText={setCustomerQuery}
+                onSubmitEditing={() => setSubmittedCustomerQuery(customerQuery)}
                 style={styles.customerSearchInput}
                 placeholder="ค้นหาชื่อ นามสกุล หรือเลขที่กรมธรรม์"
                 placeholderTextColor="#9aa4ad"
               />
             </View>
-            <Pressable style={styles.customerSearchButton} onPress={() => Alert.alert("ค้นหาลูกค้า", customerQuery.trim() || "กรุณาระบุคำค้นหา")}>
+            <Pressable style={styles.customerSearchButton} onPress={() => setSubmittedCustomerQuery(customerQuery)}>
               <Text style={styles.customerSearchButtonText}>ค้นหา</Text>
             </Pressable>
             <View style={styles.customerSegment}>
@@ -283,7 +326,7 @@ function CustomerListScreen({ onBack, onMenu }) {
           </View>
 
           <Text style={styles.customerCountTitle}>
-            ใบคำขอทั้งหมด <Text style={styles.blueText}>0</Text> รายการ
+            ใบคำขอทั้งหมด <Text style={styles.blueText}>{customers.length}</Text> รายการ
           </Text>
 
           <View style={styles.customerTable}>
@@ -294,13 +337,17 @@ function CustomerListScreen({ onBack, onMenu }) {
               <Text style={[styles.customerTh, styles.customerPayStatusCol]}>สถานะการชำระ</Text>
               <Text style={[styles.customerTh, styles.customerDueStatusCol]}>วันที่ครบกำหนดชำระ สถานะกรมธรรม์</Text>
             </View>
-            <View style={styles.emptyCustomerState}>
-              <View style={styles.emptyDocument}>
-                <View style={styles.emptyPaperBack} />
-                <View style={styles.emptyPaperFront} />
+            {customers.length ? customers.map((row, index) => (
+              <CustomerRow key={`${row[3]}-${index}`} row={row} onOpenPayment={onOpenPayment} />
+            )) : (
+              <View style={styles.emptyCustomerState}>
+                <View style={styles.emptyDocument}>
+                  <View style={styles.emptyPaperBack} />
+                  <View style={styles.emptyPaperFront} />
+                </View>
+                <Text style={styles.emptyCustomerText}>ไม่พบข้อมูล</Text>
               </View>
-              <Text style={styles.emptyCustomerText}>ไม่มีข้อมูล</Text>
-            </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -308,17 +355,60 @@ function CustomerListScreen({ onBack, onMenu }) {
   );
 }
 
-function PaymentListScreen({ historyRecords, onBack, onPay, onOpenHistory, onMenu, onOpenAreaFilter }) {
-  const [activeTab, setActiveTab] = useState("payments");
+function CustomerRow({ row, onOpenPayment }) {
+  const [gender, name, phone, policy, , premium, due, statusType, status, note, enabled] = row;
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.customerDataRow, pressed && styles.copyPressed]}
+      onPress={() => enabled ? onOpenPayment(row) : Alert.alert("ไม่สามารถชำระได้", note || "รายการนี้ยังไม่พร้อมชำระผ่านแอป")}
+    >
+      <View style={[styles.customerDataCell, styles.customerApplicantCol]}>
+        <Avatar gender={gender} size={48} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.historyResultName} numberOfLines={1}>{name}</Text>
+          <View style={styles.phoneLine}><Ionicons name="call-outline" size={14} color={MUTED} /><Text style={styles.historyPhone}>{phone}</Text></View>
+        </View>
+      </View>
+      <Text style={[styles.customerDataText, styles.customerPolicyNoCol]}>{policy}</Text>
+      <Text style={[styles.customerDataText, styles.customerPremiumCol]}>{premium} บาท</Text>
+      <View style={[styles.customerDataCell, styles.customerPayStatusCol]}>
+        <View style={[styles.statusPill, statusType === "auto" ? styles.statusAuto : styles.statusWait]}>
+          <Text style={styles.statusText}>{status}</Text>
+        </View>
+      </View>
+      <View style={[styles.customerDataCell, styles.customerDueStatusCol]}>
+        <Text style={styles.customerDueText}>ครบกำหนด {due}</Text>
+        <Text style={[styles.customerDueNote, !enabled && styles.customerDueBlocked]}>{enabled ? "แตะเพื่อชำระเบี้ย" : note || "ยังไม่พร้อมชำระ"}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function PaymentListScreen({ initialTab = "payments", initialSummary = "ready", navigationRequest, areaFilter, historyRecords, onBack, onPay, onOpenHistory, onMenu, onOpenAreaFilter }) {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [sorts, setSorts] = useState([]);
   const [query, setQuery] = useState("");
   const [submittedQuery, setSubmittedQuery] = useState("");
-  const [activeSummary, setActiveSummary] = useState("ready");
+  const [activeSummary, setActiveSummary] = useState(initialSummary);
   const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setActiveTab(initialTab || "payments");
+    setActiveSummary(initialSummary || "ready");
+    setPage(1);
+  }, [initialTab, initialSummary, navigationRequest]);
   const sortedRows = useMemo(() => {
     const categoryRows = activeSummary === "ready" ? paymentRows : activeSummary === "overdue" ? paymentRows.slice(0, 6) : paymentRows.slice(6);
+    const areaRows = areaFilter ? categoryRows.filter((row) => {
+      const area = paymentAreaAssignments[paymentRows.indexOf(row)];
+      return area
+        && area.province === areaFilter.province
+        && (!areaFilter.districts.length || areaFilter.districts.includes(area.district))
+        && (!areaFilter.subdistricts.length || areaFilter.subdistricts.includes(area.subdistrict));
+    }) : categoryRows;
     const needle = submittedQuery.trim().toLocaleLowerCase("th");
-    const searchableRows = needle ? categoryRows.filter((row) => row[1].toLocaleLowerCase("th").includes(needle) || row[3].includes(needle)) : categoryRows;
+    const searchableRows = needle ? areaRows.filter((row) => row[1].toLocaleLowerCase("th").includes(needle) || row[3].includes(needle)) : areaRows;
     if (!sorts.length) return searchableRows;
     const fieldIndexes = {
       customer: 1,
@@ -343,7 +433,13 @@ function PaymentListScreen({ historyRecords, onBack, onPay, onOpenHistory, onMen
       }
       return 0;
     });
-  }, [sorts, submittedQuery, activeSummary]);
+  }, [sorts, submittedQuery, activeSummary, areaFilter]);
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / pageSize));
+  const visibleRows = sortedRows.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => {
+    setPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   function toggleSort(key) {
     setSorts((current) => {
@@ -386,30 +482,33 @@ function PaymentListScreen({ historyRecords, onBack, onPay, onOpenHistory, onMen
           <View style={styles.listCard}>
           <View style={styles.toolbar}>
             <View style={styles.searchBox}>
-              <Text style={styles.searchIcon}>⌕</Text>
+              <Ionicons name="search-outline" size={27} color="#75818a" />
               <TextInput value={query} onChangeText={setQuery} onSubmitEditing={() => setSubmittedQuery(query)} style={styles.searchInput} placeholder="ค้นหาชื่อ นามสกุล  หรือเลขที่กรมธรรม์" placeholderTextColor="#9aa4ad" />
             </View>
             <Pressable style={styles.searchButton} onPress={() => setSubmittedQuery(query)}>
               <Text style={styles.searchButtonText}>ค้นหา</Text>
             </Pressable>
-            <Pressable style={styles.filterLink} onPress={() => Alert.alert("ตัวกรอง", "เลือกกลุ่มสถานะจากการ์ดสรุปด้านล่าง") }>
-              <Text style={styles.filterIcon}>▽</Text>
-              <Text style={styles.filterText}>ตัวกรอง</Text>
+            <Pressable style={styles.filterLink} onPress={() => {
+              setActiveSummary((current) => current === "ready" ? "overdue" : current === "overdue" ? "lapsed" : "ready");
+              setPage(1);
+            }}>
+              <Ionicons name="options-outline" size={25} color={BLUE} />
+              <Text style={styles.filterText}>ตัวกรอง: {activeSummary === "ready" ? "พร้อมชำระ" : activeSummary === "overdue" ? "เกินกำหนด" : "พ้นผ่อนผัน"}</Text>
             </Pressable>
             <Pressable style={styles.areaLink} onPress={onOpenAreaFilter}>
-              <Text style={styles.pinIcon}>⌖</Text>
-              <Text style={styles.filterText}>กรองตามพื้นที่</Text>
+              <Ionicons name="location-outline" size={25} color={BLUE} />
+              <Text style={styles.filterText}>{areaFilter ? `พื้นที่: ${areaFilter.province}` : "กรองตามพื้นที่"}</Text>
             </Pressable>
           </View>
 
           <View style={styles.summaryGrid}>
-            <SummaryTile active={activeSummary === "ready"} label="พร้อมชำระ" value="50 รายการ" onPress={() => { setActiveSummary("ready"); setPage(1); }} />
-            <SummaryTile active={activeSummary === "overdue"} label="เกินกำหนดชำระ" value="20 รายการ" onPress={() => { setActiveSummary("overdue"); setPage(1); }} />
-            <SummaryTile active={activeSummary === "lapsed"} label="เกินระยะเวลาผ่อนผัน" value="10 รายการ" onPress={() => { setActiveSummary("lapsed"); setPage(1); }} />
+            <SummaryTile active={activeSummary === "ready"} label="พร้อมชำระ" value={`${paymentRows.length} รายการ`} onPress={() => { setActiveSummary("ready"); setPage(1); }} />
+            <SummaryTile active={activeSummary === "overdue"} label="เกินกำหนดชำระ" value={`${paymentRows.slice(0, 6).length} รายการ`} onPress={() => { setActiveSummary("overdue"); setPage(1); }} />
+            <SummaryTile active={activeSummary === "lapsed"} label="เกินระยะเวลาผ่อนผัน" value={`${paymentRows.slice(6).length} รายการ`} onPress={() => { setActiveSummary("lapsed"); setPage(1); }} />
           </View>
 
           <Text style={styles.sectionTitle}>
-            {activeSummary === "ready" ? "พร้อมชำระ" : activeSummary === "overdue" ? "เกินกำหนดชำระ" : "เกินระยะเวลาผ่อนผัน"} <Text style={styles.blueText}>{activeSummary === "ready" ? "50" : activeSummary === "overdue" ? "20" : "10"}</Text> รายการ
+            {activeSummary === "ready" ? "พร้อมชำระ" : activeSummary === "overdue" ? "เกินกำหนดชำระ" : "เกินระยะเวลาผ่อนผัน"} <Text style={styles.blueText}>{sortedRows.length}</Text> รายการ
           </Text>
 
           <View style={styles.table}>
@@ -422,14 +521,18 @@ function PaymentListScreen({ historyRecords, onBack, onPay, onOpenHistory, onMen
               <SortableHeader label="สถานะ" columnStyle={styles.statusCol} sortKey="status" sorts={sorts} onSort={toggleSort} />
               <Text style={[styles.th, styles.actionCol]}>การจัดการ</Text>
             </View>
-            {sortedRows.map((row, index) => (
-              <PaymentRow key={`${row[3]}-${index}`} row={row} onPay={onPay} />
+            {visibleRows.map((row, index) => (
+              <PaymentRow key={`${row[3]}-${(page - 1) * pageSize + index}`} row={row} onPay={onPay} />
             ))}
           </View>
 
           <View style={styles.pagination}>
-            <Text style={styles.paginationText}>จำนวนรายการ/หน้า  10  จาก 24 รายการ</Text>
-            <Pressable onPress={() => setPage((current) => current === 1 ? 2 : 1)}><Text style={styles.nextText}>หน้า {page}   {page === 1 ? "ถัดไป ›" : "‹ ก่อนหน้า"}</Text></Pressable>
+            <Text style={styles.paginationText}>จำนวนรายการ/หน้า  {pageSize}  จาก {sortedRows.length} รายการ</Text>
+            <View style={styles.paginationActions}>
+              <Pressable disabled={page <= 1} onPress={() => setPage((current) => Math.max(1, current - 1))}><Text style={[styles.nextText, page <= 1 && styles.paginationDisabled]}>‹ ก่อนหน้า</Text></Pressable>
+              <Text style={styles.paginationText}>หน้า {page}/{totalPages}</Text>
+              <Pressable disabled={page >= totalPages} onPress={() => setPage((current) => Math.min(totalPages, current + 1))}><Text style={[styles.nextText, page >= totalPages && styles.paginationDisabled]}>ถัดไป ›</Text></Pressable>
+            </View>
           </View>
           </View>
         )}
@@ -444,6 +547,7 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
   const [sortDirection, setSortDirection] = useState("desc");
   const [statusFilter, setStatusFilter] = useState("all");
   const [historyPage, setHistoryPage] = useState(1);
+  const pageSize = 10;
   const rows = useMemo(() => {
     const needle = submittedQuery.trim().toLocaleLowerCase("th");
     const statusRows = statusFilter === "all" ? records : records.filter((row) => row[6] === statusFilter);
@@ -451,13 +555,19 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
       row[1].toLocaleLowerCase("th").includes(needle) || row[3].includes(needle)
     ) : statusRows;
     return [...filtered].sort((a, b) => a[5].localeCompare(b[5], "th", { numeric: true }) * (sortDirection === "asc" ? 1 : -1));
-  }, [submittedQuery, sortDirection, statusFilter]);
+  }, [records, submittedQuery, sortDirection, statusFilter]);
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const visibleRows = rows.slice((historyPage - 1) * pageSize, historyPage * pageSize);
+
+  useEffect(() => {
+    setHistoryPage((current) => Math.min(current, totalPages));
+  }, [totalPages]);
 
   return (
     <View style={styles.listCard}>
       <View style={styles.toolbar}>
         <View style={styles.searchBox}>
-          <Text style={styles.searchIcon}>⌕</Text>
+          <Ionicons name="search-outline" size={27} color="#75818a" />
           <TextInput
             value={query}
             onChangeText={setQuery}
@@ -475,13 +585,13 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
           setStatusFilter(next);
           setHistoryPage(1);
         }}>
-          <Text style={styles.filterIcon}>▽</Text>
+          <Ionicons name="options-outline" size={25} color={BLUE} />
           <Text style={styles.filterText}>ตัวกรอง{statusFilter === "pending" ? ": รอตรวจสอบ" : statusFilter === "success" ? ": สำเร็จ" : ""}</Text>
         </Pressable>
       </View>
 
       <View style={styles.historySummary}>
-        <Text style={styles.sectionTitle}>ประวัติการชำระเบี้ย <Text style={styles.blueText}>50</Text> รายการ</Text>
+        <Text style={styles.sectionTitle}>ประวัติการชำระเบี้ย <Text style={styles.blueText}>{rows.length}</Text> รายการ</Text>
         <Text style={styles.historyAsOf}>ข้อมูล ณ วันที่ 14 มิ.ย. 69</Text>
       </View>
 
@@ -495,8 +605,8 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
           </Pressable>
           <Text style={[styles.historyTh, { width: 252 }]}>สถานะ</Text>
         </View>
-        {rows.length ? rows.map((row, index) => (
-          <Pressable key={`${row[3]}-${index}`} style={styles.historyResultRow} onPress={() => onOpenHistory(row)}>
+        {visibleRows.length ? visibleRows.map((row, index) => (
+          <Pressable key={`${row[3]}-${(historyPage - 1) * pageSize + index}`} style={styles.historyResultRow} onPress={() => onOpenHistory(row)}>
             <View style={[styles.historyResultCell, { width: 380 }]}>
               <Avatar gender={row[0]} size={54} />
               <View>
@@ -509,7 +619,8 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
             <Text style={[styles.historyResultText, { width: 150 }]}>{row[5]}</Text>
             <View style={{ width: 252, alignItems: "center" }}>
               <View style={[styles.historyStatusPill, row[6] === "success" ? styles.historyStatusSuccess : styles.historyStatusPending]}>
-                <Text style={styles.historyStatusText}>{row[6] === "success" ? "⊙ ชำระสำเร็จ" : "⌛ รอตรวจสอบจากทางการเงิน"}</Text>
+                <Ionicons name={row[6] === "success" ? "checkmark-circle-outline" : "hourglass-outline"} size={16} color={row[6] === "success" ? "#297a47" : "#8055a5"} />
+                <Text style={styles.historyStatusText}>{row[6] === "success" ? "ชำระสำเร็จ" : "รอตรวจสอบจากทางการเงิน"}</Text>
               </View>
             </View>
           </Pressable>
@@ -524,8 +635,12 @@ function PaymentHistoryPanel({ records, onOpenHistory }) {
         )}
       </View>
       <View style={styles.historyPagination}>
-        <Pressable onPress={() => Alert.alert("จำนวนรายการต่อหน้า", "กำหนดไว้ที่ 10 รายการต่อหน้า")}><Text style={styles.paginationText}>จำนวนรายการ/หน้า   <Text style={styles.historySelect}> 10  ⌄ </Text>   จาก 50 รายการ</Text></Pressable>
-        <Pressable onPress={() => setHistoryPage((current) => current === 1 ? 2 : 1)}><Text style={styles.paginationText}>หน้า   <Text style={styles.historySelect}> {historyPage}  ⌄ </Text>   <Text style={styles.nextText}>{historyPage === 1 ? "ถัดไป  〉" : "〈  ก่อนหน้า"}</Text></Text></Pressable>
+        <Text style={styles.paginationText}>จำนวนรายการ/หน้า   <Text style={styles.historySelect}> {pageSize} </Text>   จาก {rows.length} รายการ</Text>
+        <View style={styles.paginationActions}>
+          <Pressable disabled={historyPage <= 1} onPress={() => setHistoryPage((current) => Math.max(1, current - 1))}><Text style={[styles.nextText, historyPage <= 1 && styles.paginationDisabled]}>‹ ก่อนหน้า</Text></Pressable>
+          <Text style={styles.paginationText}>หน้า {historyPage}/{totalPages}</Text>
+          <Pressable disabled={historyPage >= totalPages} onPress={() => setHistoryPage((current) => Math.min(totalPages, current + 1))}><Text style={[styles.nextText, historyPage >= totalPages && styles.paginationDisabled]}>ถัดไป ›</Text></Pressable>
+        </View>
       </View>
     </View>
   );
@@ -536,9 +651,9 @@ function PaymentHistoryDetailScreen({ record, onBack, onMenu }) {
   const [databaseDetails, setDatabaseDetails] = useState([]);
   const isPending = record?.[6] === "pending";
   const installmentCount = record?.[7] || 1;
-  const isUwb = isPending || record?.[8] === "UWB";
+  const isUwb = record?.[8] === "UWB";
   const customerName = record?.[1] || "ธนาธิป รุ่งปัญญกิจพัฒน์";
-  const phone = record?.[2] && record[2] !== "-" ? record[2] : "082-345-6789";
+  const phone = record?.[2] && record[2] !== "-" ? record[2] : "-";
   const policyNo = record?.[3] || "1234567890";
 
   useEffect(() => {
@@ -568,7 +683,7 @@ function PaymentHistoryDetailScreen({ record, onBack, onMenu }) {
           <Text style={styles.historyDetailTitle}>ประวัติการชำระเบี้ยปีต่อ</Text>
           <Text style={styles.historyDetailSubtitle}>รายละเอียดชำระเบี้ยปีต่อ  ⓘ</Text>
           <View style={styles.historyLead}>
-            <Avatar gender="male" size={64} />
+            <Avatar gender={record?.[0] || "male"} size={64} />
             <View style={{ flex: 1 }}>
               <Text style={styles.historyLeadName}>นาย {customerName}</Text>
               <Text style={styles.historyLeadPolicy}>เลขที่กรมธรรม์ <Text style={styles.blueText}>{policyNo}</Text> {isUwb ? "ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90 [UWB]" : "ทรัพย์ปันผล 20/20 [EL]"}</Text>
@@ -577,7 +692,7 @@ function PaymentHistoryDetailScreen({ record, onBack, onMenu }) {
           <View style={styles.historyDetailRows}>
             <View style={styles.historyDetailLine}>
               <Text style={styles.historyDetailLabel}>เบอร์โทรศัพท์มือถือ :</Text>
-              <Pressable accessibilityRole="button" accessibilityLabel={`คัดลอกเบอร์โทร ${phone}`} style={({ pressed }) => [styles.historyCopyValue, pressed && styles.copyPressed]} onPress={copyDetailPhone}>
+              <Pressable disabled={phone === "-"} accessibilityRole="button" accessibilityLabel={`คัดลอกเบอร์โทร ${phone}`} style={({ pressed }) => [styles.historyCopyValue, phone === "-" && styles.copyDisabled, pressed && styles.copyPressed]} onPress={copyDetailPhone}>
                 <Text style={styles.historyCopyText}>{phone}</Text>
                 <Ionicons name="copy-outline" size={19} color={BLUE} />
               </Pressable>
@@ -587,11 +702,12 @@ function PaymentHistoryDetailScreen({ record, onBack, onMenu }) {
               <Text style={styles.historyDetailLabel}>สถานะการชำระเบี้ย :</Text>
               <View style={{ flex: 1, alignItems: "flex-start" }}>
                 <View style={[styles.historyStatusPill, isPending ? styles.historyStatusPending : styles.historyStatusSuccess]}>
-                  <Text style={styles.historyStatusText}>{isPending ? "⌛ รอตรวจสอบจากทางการเงิน" : "⊙ ชำระสำเร็จ"}</Text>
+                  <Ionicons name={isPending ? "hourglass-outline" : "checkmark-circle-outline"} size={16} color={isPending ? "#8055a5" : "#297a47"} />
+                  <Text style={styles.historyStatusText}>{isPending ? "รอตรวจสอบจากทางการเงิน" : "ชำระสำเร็จ"}</Text>
                 </View>
                 {isPending ? (
                   <Pressable style={styles.historyCheckStatus} onPress={() => Alert.alert("ตรวจสอบสถานะ", "ส่งคำขอตรวจสอบสถานะการชำระเงินแล้ว")}>
-                    <Text style={styles.historyCheckStatusIcon}>⟳</Text><Text style={styles.historyCheckStatusText}>ตรวจสอบสถานะ</Text>
+                    <Ionicons name="refresh-outline" size={27} color={BLUE} /><Text style={styles.historyCheckStatusText}>ตรวจสอบสถานะ</Text>
                   </Pressable>
                 ) : null}
               </View>
@@ -603,7 +719,7 @@ function PaymentHistoryDetailScreen({ record, onBack, onMenu }) {
           {detailRows.map((detail, index) => (
             <View key={detail.id} style={[styles.historyPaymentInfo, index > 0 && styles.historyPaymentInfoSpacing]}>
               <View style={styles.historyPaymentHeadline}>
-                <Text style={styles.historyReceiptIcon}>▧</Text>
+                <Ionicons name="receipt-outline" size={28} color={BLUE} style={styles.historyReceiptIcon} />
                 <Text style={styles.historyPaymentPeriod}>ปีที่/งวดที่ :  <Text style={styles.historyStrong}>{detail.payPeriod}</Text></Text>
                 <Text style={styles.historyPaymentAmount}>{detail.totalPremium.toLocaleString("en-US", { minimumFractionDigits: 2 })} บาท</Text>
               </View>
@@ -706,12 +822,12 @@ function PaymentRow({ row, onPay }) {
       <Text style={[styles.td, styles.dueCol]}>{due}</Text>
       <View style={[styles.td, styles.statusCol]}>
         <View style={[styles.statusPill, statusType === "auto" ? styles.statusAuto : styles.statusWait]}>
-          <Text style={styles.statusText}>⌛ {status}</Text>
+          <View style={styles.inlineStatus}><Ionicons name="hourglass-outline" size={14} color="#4a4f54" /><Text style={styles.statusText}>{status}</Text></View>
         </View>
         {note ? <Text style={styles.statusNote}>{note}</Text> : null}
       </View>
       <View style={[styles.td, styles.actionCol]}>
-        <Pressable style={[styles.payButton, !enabled && styles.payButtonDisabled]} onPress={enabled ? onPay : undefined}>
+        <Pressable style={[styles.payButton, !enabled && styles.payButtonDisabled]} onPress={enabled ? () => onPay(row) : undefined}>
           <Text style={[styles.payButtonText, !enabled && styles.payButtonTextDisabled]}>ชำระเบี้ย</Text>
         </Pressable>
       </View>
@@ -719,7 +835,33 @@ function PaymentRow({ row, onPay }) {
   );
 }
 
-function PaymentConfirmScreen({ onBack, onConfirm, onMenu }) {
+function PaymentConfirmScreen({ payment, onBack, onConfirm, onMenu }) {
+  const selectedPayment = payment || paymentRows[0];
+  const [installmentInput, setInstallmentInput] = useState("1");
+  const [showMore, setShowMore] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const installmentCount = Number(installmentInput);
+  const validInstallmentCount = Number.isInteger(installmentCount) && installmentCount >= 1 && installmentCount <= 24;
+  const premiumAmount = Number(String(selectedPayment[5]).replaceAll(",", ""));
+  const totalAmount = validInstallmentCount ? premiumAmount * installmentCount : 0;
+  const formattedPremium = premiumAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const formattedTotal = totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  function confirmPayment() {
+    if (!validInstallmentCount) {
+      Alert.alert("กรุณาตรวจสอบจำนวนงวด", "ระบุจำนวนงวดเป็นตัวเลขตั้งแต่ 1–24 งวด");
+      return;
+    }
+    onConfirm({ payment: selectedPayment, installmentCount });
+  }
+
+  async function copyConfirmPhone(phone) {
+    if (!phone || phone === "-") return;
+    await Clipboard.setStringAsync(phone);
+    setToastMessage("คัดลอกเบอร์โทรแล้ว");
+    setTimeout(() => setToastMessage(""), 2200);
+  }
+
   return (
     <View style={styles.screen}>
       <AppHeader title="ยืนยันชำระเบี้ยปีต่อ" onBack={onBack} onMenu={onMenu} />
@@ -728,30 +870,28 @@ function PaymentConfirmScreen({ onBack, onConfirm, onMenu }) {
           <Text style={styles.confirmHeading}>ยืนยันชำระเบี้ยปีต่อ</Text>
           <Text style={styles.confirmSubheading}>รายละเอียดชำระเบี้ยปีต่อ  ⓘ</Text>
           <View style={styles.insuredCard}>
-            <Avatar gender="male" size={64} />
+            <Avatar gender={selectedPayment[0]} size={64} />
             <View style={styles.insuredInfo}>
-              <Text style={styles.insuredName}>นาย ธนาธิป รุ่งปัญญากิจพัฒน์</Text>
-              <Text style={styles.policyLine}>เลขที่กรมธรรม์ <Text style={styles.blueText}>1234567890</Text> ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90 [UWB]</Text>
+              <Text style={styles.insuredName}>{selectedPayment[1]}</Text>
+              <Text style={styles.policyLine}>เลขที่กรมธรรม์ <Text style={styles.blueText}>{selectedPayment[3]}</Text> ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90 [UWB]</Text>
             </View>
           </View>
-          <DetailGrid />
+          <DetailGrid payment={selectedPayment} onCopyPhone={copyConfirmPhone} />
         </View>
 
         <View style={styles.paymentInfoCard}>
           <Text style={styles.paymentInfoHeading}>ข้อมูลการชำระเบี้ย</Text>
-          <InstallmentBox period="02/01" dateLabel="ครบกำหนดชำระ" date="20 ก.พ. 2569" rp="999,999,999.00 บาท" rider="999,999,999.00 บาท" total="999,999,999.00 บาท" />
-          <InstallmentBox period="03/01" dateLabel="ครบกำหนดชำระ" date="20 ม.ค. 2569" rp="999,999,999.00 บาท" rider="999,999,999.00 บาท" total="999,999,999.00 บาท" />
+          <InstallmentBox period={selectedPayment[4]} dateLabel="ครบกำหนดชำระ" date={selectedPayment[6]} rp={`${formattedPremium} บาท`} rider="0.00 บาท" total={`${formattedPremium} บาท`} />
+          {showMore ? <InstallmentBox period="งวดถัดไป" dateLabel="สถานะ" date="คำนวณตามจำนวนงวดที่ระบุ" rp={`${formattedPremium} บาท/งวด`} total={`${formattedTotal} บาท`} /> : null}
           <Text style={styles.inputLabel}>งวดที่ต้องการชำระ <Text style={styles.required}>*</Text></Text>
-          <TextInput style={styles.periodInput} placeholder="งวด" placeholderTextColor="#9aa4ad" keyboardType="numeric" />
+          <TextInput value={installmentInput} onChangeText={setInstallmentInput} style={styles.periodInput} placeholder="งวด" placeholderTextColor="#9aa4ad" keyboardType="numeric" />
           <Text style={styles.hintText}>● ระบุงวดที่ต้องการชำระได้ตั้งแต่ 1–24 งวด</Text>
-          <InstallmentBox period="04/01" dateLabel="วันที่ชำระ" date="20 ธ.ค. 2568" rp="999,999,999 บาท" total="999,999,999 บาท" />
-          <InstallmentBox period="05/01" dateLabel="วันที่ชำระ" date="20 ธ.ค. 2568" rp="999,999,999 บาท" total="999,999,999 บาท" />
         </View>
 
         <View style={styles.totalCard}>
-          <Text style={styles.moreText}>ดูเพิ่มเติม  ⌄</Text>
+          <Pressable onPress={() => setShowMore((current) => !current)}><Text style={styles.moreText}>{showMore ? "ซ่อนรายละเอียด  ⌃" : "ดูเพิ่มเติม  ⌄"}</Text></Pressable>
           <View style={styles.totalBox}>
-            <Text style={styles.totalText}>เบี้ยประกันรวม <Text style={styles.totalAmount}>999,999,999.00</Text> บาท</Text>
+            <Text style={styles.totalText}>เบี้ยประกันรวม <Text style={styles.totalAmount}>{validInstallmentCount ? formattedTotal : "-"}</Text> บาท</Text>
           </View>
         </View>
 
@@ -759,18 +899,29 @@ function PaymentConfirmScreen({ onBack, onConfirm, onMenu }) {
           <Pressable style={styles.secondaryAction} onPress={onBack}>
             <Text style={styles.secondaryActionText}>ย้อนกลับ</Text>
           </Pressable>
-          <Pressable style={styles.primaryAction} onPress={onConfirm}>
+          <Pressable style={[styles.primaryAction, !validInstallmentCount && styles.primaryActionDisabled]} onPress={confirmPayment}>
             <Text style={styles.primaryActionText}>ยืนยันชำระเบี้ย</Text>
           </Pressable>
         </View>
       </ScrollView>
+      {toastMessage ? <View pointerEvents="none" style={styles.toast}><Ionicons name="checkmark-circle" size={20} color="#fff" /><Text style={styles.toastText}>{toastMessage}</Text></View> : null}
     </View>
   );
 }
 
-function QrPaymentScreen({ onBack, onMenu }) {
+function QrPaymentScreen({ payment, installmentCount = 1, onBack, onMenu }) {
   const qrCardRef = useRef(null);
-  const testPayload = "RYP-TEST|POLICY=1234567890|AMOUNT=100000.00|REF=RYP-TEST-0001";
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
+  const selectedPayment = payment || paymentRows[0];
+  const premiumAmount = Number(String(selectedPayment[5]).replaceAll(",", ""));
+  const totalAmount = premiumAmount * Math.max(1, Number(installmentCount) || 1);
+  const formattedAmount = totalAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const reference = `RYP-${selectedPayment[3]}-${String(installmentCount).padStart(2, "0")}`;
+  const qrPayload = `RYP|POLICY=${selectedPayment[3]}|AMOUNT=${totalAmount.toFixed(2)}|REF=${reference}`;
+  const expiryLabel = useMemo(() => {
+    const expiry = new Date(Date.now() + 15 * 60 * 1000);
+    return new Intl.DateTimeFormat("th-TH", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(expiry);
+  }, [reference]);
 
   async function captureQrCard() {
     return captureRef(qrCardRef, {
@@ -791,7 +942,7 @@ function QrPaymentScreen({ onBack, onMenu }) {
       await Sharing.shareAsync(uri, {
         UTI: "public.png",
         mimeType: "image/png",
-        anchor: { x: 597, y: 1450, width: 1, height: 1 }
+        anchor: { x: viewportWidth / 2, y: viewportHeight / 2, width: 1, height: 1 }
       });
     } catch (error) {
       Alert.alert("แชร์ไม่สำเร็จ", String(error));
@@ -828,13 +979,13 @@ function QrPaymentScreen({ onBack, onMenu }) {
             <Text style={styles.qrBrandLife}>ประกันชีวิต</Text>
           </View>
           <Text style={styles.qrHeading}>QR Code</Text>
-          <QRCode value={testPayload} size={300} color="#252525" backgroundColor="#ffffff" />
-          <Text style={styles.qrExpiry}>หมดอายุภายในวันที่ 22 เมษายน 15:02</Text>
-          <View style={styles.qrTestBadge}><Text style={styles.qrTestBadgeText}>ข้อมูลทดสอบ</Text></View>
+          <QRCode value={qrPayload} size={300} color="#252525" backgroundColor="#ffffff" />
+          <Text style={styles.qrExpiry}>หมดอายุภายใน {expiryLabel}</Text>
+          <View style={styles.qrTestBadge}><Text style={styles.qrTestBadgeText}>อ้างอิง {reference}</Text></View>
           <View style={styles.qrDetails}>
-            <DetailLine label="ชื่อผู้เอาประกันภัย" value="สมชาย ใจดี" />
-            <DetailLine label="เบี้ยประกันภัยรวม" value="100,000.00 บาท" />
-            <DetailLine label="หมายเลขกรมธรรม์" value="1234567890" />
+            <DetailLine label="ชื่อผู้เอาประกันภัย" value={selectedPayment[1]} />
+            <DetailLine label="เบี้ยประกันภัยรวม" value={`${formattedAmount} บาท`} />
+            <DetailLine label="หมายเลขกรมธรรม์" value={selectedPayment[3]} />
           </View>
         </View>
         <View style={styles.qrActions}>
@@ -850,13 +1001,14 @@ function QrPaymentScreen({ onBack, onMenu }) {
   );
 }
 
-function DetailGrid() {
+function DetailGrid({ payment, onCopyPhone }) {
+  const selectedPayment = payment || paymentRows[0];
   const items = [
-    ["เบอร์โทรศัพท์มือถือ :", "082-345-6789"],
+    ["เบอร์โทรศัพท์มือถือ :", selectedPayment[2] || "-"],
     ["อีเมล :", "example@gmail.com"],
     ["ที่อยู่ :", "14 ม.16 บ้านต้าสุขเกษม ต.ต้า อ.ขุนตาล\nจ.เชียงราย 57340"],
     ["ใบเสร็จรับเงินอิเล็กทรอนิกส์ :", "⊗ ยังไม่ลงทะเบียน"],
-    ["สถานะการชำระเบี้ย :", "⌛ รอชำระเบี้ย"],
+    ["สถานะการชำระเบี้ย :", selectedPayment[8]],
     ["ผู้แนะนำ :", "นางสาว ชนิกานต์ ศรีเจริญ"]
   ];
 
@@ -870,7 +1022,8 @@ function DetailGrid() {
               style={styles.copyPhone}
               accessibilityRole="button"
               accessibilityLabel={`คัดลอกเบอร์โทร ${value}`}
-              onPress={() => copyPhoneNumber(value)}
+              disabled={!value || value === "-"}
+              onPress={() => onCopyPhone(value)}
             >
               <Text style={styles.detailValue}>{value}</Text>
               <Ionicons name="copy-outline" size={23} color={BLUE} />
@@ -879,7 +1032,7 @@ function DetailGrid() {
             <Text style={[
               styles.detailValue,
               value.includes("ยังไม่ลงทะเบียน") && styles.dangerBadgeText,
-              value.includes("รอชำระเบี้ย") && styles.waitBadgeText
+              (value.includes("รอชำระเบี้ย") || value.includes("รอทำชำระ")) && styles.waitBadgeText
             ]}>{value}</Text>
           )}
         </View>
@@ -909,7 +1062,7 @@ function InstallmentBox({ period, dateLabel, date, rp, rider, total }) {
   );
 }
 
-function AreaFilterModal({ visible, onClose }) {
+function AreaFilterModal({ visible, onClose, onApply }) {
   const [provinceIndex, setProvinceIndex] = useState(0);
   const province = provinces[provinceIndex];
   const [districtNames, setDistrictNames] = useState([province.areas[0].name]);
@@ -978,12 +1131,16 @@ function AreaFilterModal({ visible, onClose }) {
               </View>
             ) : (
               <View style={styles.emptyArea}>
-                <Text style={styles.emptyIcon}>✓?</Text>
+                <Ionicons name="location-outline" size={38} color={BLUE} />
                 <Text style={styles.emptyText}>กรุณาเลือกอำเภอ/เขตก่อน</Text>
               </View>
             )}
 
-            <Pressable style={styles.modalApply} onPress={onClose}>
+            <Pressable
+              disabled={!districtNames.length}
+              style={[styles.modalApply, !districtNames.length && styles.primaryActionDisabled]}
+              onPress={() => onApply({ province: province.name, districts: districtNames, subdistricts: subdistrictNames })}
+            >
               <Text style={styles.modalApplyText}>กรองข้อมูล</Text>
             </Pressable>
             <Pressable
@@ -991,6 +1148,7 @@ function AreaFilterModal({ visible, onClose }) {
               onPress={() => {
                 setDistrictNames([]);
                 setSubdistrictNames([]);
+                onApply(null);
               }}
             >
               <Text style={styles.modalClearText}>ล้างการกรอง</Text>
@@ -1012,11 +1170,11 @@ function Chip({ label, selected, onPress }) {
 
 function NavigationDrawer({ visible, activeScreen, onClose, onNavigate }) {
   const items = [
-    { screen: "customers", icon: "☷", label: "รายชื่อลูกค้า" },
-    { screen: "list", icon: "≡", label: "รายการชำระเบี้ย" },
-    { screen: "historyDetail", icon: "◷", label: "ประวัติการชำระเบี้ย" },
-    { screen: "confirm", icon: "✓", label: "ยืนยันชำระเบี้ย" },
-    { screen: "qr", icon: "▦", label: "ทดสอบ QR Code" }
+    { screen: "customers", icon: "people-outline", label: "รายชื่อลูกค้า" },
+    { screen: "list", icon: "card-outline", label: "รายการชำระเบี้ย" },
+    { screen: "history", icon: "time-outline", label: "ประวัติการชำระเบี้ย" },
+    { screen: "confirm", icon: "checkmark-circle-outline", label: "ยืนยันชำระเบี้ย" },
+    { screen: "qr", icon: "qr-code-outline", label: "ทดสอบ QR Code" }
   ];
 
   return (
@@ -1038,7 +1196,7 @@ function NavigationDrawer({ visible, activeScreen, onClose, onNavigate }) {
                   style={[styles.drawerItem, active && styles.drawerItemActive]}
                   onPress={() => onNavigate(item.screen)}
                 >
-                  <Text style={[styles.drawerItemIcon, active && styles.drawerItemTextActive]}>{item.icon}</Text>
+                  <Ionicons name={item.icon} size={24} color={active ? BLUE : "#72797c"} style={styles.drawerItemIcon} />
                   <Text style={[styles.drawerItemText, active && styles.drawerItemTextActive]}>{item.label}</Text>
                 </Pressable>
               );
@@ -1052,6 +1210,9 @@ function NavigationDrawer({ visible, activeScreen, onClose, onNavigate }) {
 }
 
 const styles = StyleSheet.create({
+  startupState: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: PAGE_BG },
+  startupText: { color: TEXT, fontSize: 18 },
+  startupError: { color: "#a94747", fontSize: 18, fontWeight: "700" },
   dashboard: { width: DESIGN_WIDTH, minHeight: 834, flexDirection: "row", backgroundColor: "#f2f4f5" },
   dashboardSidebar: { width: 74, minHeight: 834, paddingTop: 12, backgroundColor: "#0785c5", alignItems: "center" },
   dashboardMenuItem: { width: 64, minHeight: 70, borderRadius: 9, alignItems: "center", justifyContent: "center", gap: 4 },
@@ -1203,7 +1364,7 @@ const styles = StyleSheet.create({
   customerSegmentTextActive: { color: TEXT, fontWeight: "900" },
   customerSegmentDivider: { width: 1, height: 34, backgroundColor: "#b7c0c8" },
   customerCountTitle: { marginTop: 34, marginBottom: 28, color: TEXT, fontSize: 28, fontWeight: "900" },
-  customerTable: { minWidth: 1220 },
+  customerTable: { width: "100%" },
   customerTableHeader: {
     height: 58,
     backgroundColor: SOFT_BLUE,
@@ -1211,11 +1372,17 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   customerTh: { color: TEXT, fontSize: 22, fontWeight: "900", paddingHorizontal: 20 },
-  customerApplicantCol: { width: 260 },
-  customerPolicyNoCol: { width: 170 },
-  customerPremiumCol: { width: 260 },
-  customerPayStatusCol: { width: 200 },
-  customerDueStatusCol: { flex: 1, minWidth: 330 },
+  customerApplicantCol: { width: 245 },
+  customerPolicyNoCol: { width: 155 },
+  customerPremiumCol: { width: 220 },
+  customerPayStatusCol: { width: 175 },
+  customerDueStatusCol: { flex: 1, minWidth: 0 },
+  customerDataRow: { minHeight: 88, flexDirection: "row", alignItems: "center", borderBottomWidth: 1, borderBottomColor: "#d8e0e5" },
+  customerDataCell: { minHeight: 88, paddingHorizontal: 14, flexDirection: "row", alignItems: "center", gap: 10 },
+  customerDataText: { minHeight: 88, paddingHorizontal: 14, color: TEXT, fontSize: 17, lineHeight: 24, textAlignVertical: "center" },
+  customerDueText: { color: TEXT, fontSize: 16, lineHeight: 23, fontWeight: "700" },
+  customerDueNote: { marginTop: 4, color: BLUE, fontSize: 14, lineHeight: 20 },
+  customerDueBlocked: { color: "#a94747" },
   emptyCustomerState: {
     minHeight: 430,
     alignItems: "center",
@@ -1436,6 +1603,7 @@ const styles = StyleSheet.create({
   phoneLine: { marginTop: 7, flexDirection: "row", alignItems: "center", gap: 5 },
   phoneText: { color: MUTED, fontSize: 13 },
   statusPill: { minHeight: 30, borderRadius: 5, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
+  inlineStatus: { flexDirection: "row", alignItems: "center", gap: 5 },
   statusWait: { backgroundColor: "#fff0c7" },
   statusAuto: { backgroundColor: "#f0e5ff" },
   statusText: { color: "#4a4f54", fontSize: 13, fontWeight: "900" },
@@ -1452,6 +1620,8 @@ const styles = StyleSheet.create({
   payButtonText: { color: "#fff", fontSize: 17, fontWeight: "900" },
   payButtonTextDisabled: { color: "#b1bac1" },
   pagination: { minHeight: 80, paddingTop: 28, flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  paginationActions: { flexDirection: "row", alignItems: "center", gap: 16 },
+  paginationDisabled: { color: "#aeb8c0" },
   paginationText: { color: "#4b5563", fontSize: 14 },
   nextText: { color: BLUE, fontSize: 14, fontWeight: "900" },
   historyEmptyTable: {
@@ -1506,7 +1676,7 @@ const styles = StyleSheet.create({
   historyPhone: { color: MUTED, fontSize: 14 },
   historyResultText: { paddingHorizontal: 12, color: "#393c3e", fontSize: 18, lineHeight: 24, textAlign: "center" },
   historyStatus: { color: "#297a47", fontWeight: "700" },
-  historyStatusPill: { minHeight: 34, borderRadius: 5, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" },
+  historyStatusPill: { minHeight: 34, borderRadius: 5, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   historyStatusPending: { backgroundColor: "#f1e6f8" },
   historyStatusSuccess: { backgroundColor: "#e1f8e5" },
   historyStatusText: { color: "#3f464c", fontSize: 14, lineHeight: 20, fontWeight: "700" },
@@ -1546,6 +1716,7 @@ const styles = StyleSheet.create({
   historyCopyValue: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   historyCopyText: { color: "#393c3e", fontSize: 19, lineHeight: 28, fontWeight: "600" },
   copyPressed: { opacity: 0.55 },
+  copyDisabled: { opacity: 0.45 },
   toast: { position: "absolute", left: "50%", bottom: 42, transform: [{ translateX: -116 }], width: 232, minHeight: 48, paddingHorizontal: 18, borderRadius: 8, backgroundColor: "rgba(43, 52, 59, .94)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 9, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 8, elevation: 8 },
   toastText: { color: "#fff", fontSize: 16, lineHeight: 22, fontWeight: "600" },
   historyCheckStatus: { marginTop: 14, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 2, minHeight: 34 },
@@ -1605,6 +1776,7 @@ const styles = StyleSheet.create({
   footerActions: { width: "100%", maxWidth: 710, flexDirection: "row", gap: 16 },
   secondaryAction: { flex: 1, height: 58, borderWidth: 1, borderColor: BLUE, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" },
   primaryAction: { flex: 1, height: 58, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: BLUE },
+  primaryActionDisabled: { backgroundColor: "#aeb8c0" },
   secondaryActionText: { color: BLUE, fontSize: 21, fontWeight: "900" },
   primaryActionText: { color: "#fff", fontSize: 21, fontWeight: "900" },
   qrPage: { width: DESIGN_WIDTH, paddingVertical: 32, alignItems: "center", gap: 24 },

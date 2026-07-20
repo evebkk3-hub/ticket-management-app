@@ -2,3 +2,6 @@ out/
 data/
 .env
 *.log
+**/node_modules/
+**/.expo/
+**/dist*/

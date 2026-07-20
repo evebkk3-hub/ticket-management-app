@@ -9,6 +9,13 @@
 - [x] Seed runs only for an empty database
 - [x] React Navigation handles screen history and route parameters
 - [x] App is configured for tablet landscape mode
+- [x] EAS iOS Simulator standalone build 0.1.0 installs and launches without Metro/Dev Launcher
+- [x] iPad landscape viewport is 1194×834 and long screens scroll inside the visible canvas
+- [x] Drawer History, Confirm, and QR entries route to their matching screens
+- [x] Customer search/segments, payment/history pagination, and area filter change displayed records
+- [x] Selected payment data propagates through Confirm totals into the QR payload
+- [x] Noto Sans Thai weight mapping and Ionicons are included in the production iOS bundle
+- [ ] Upload corrected 0.1.1 EAS artifact and replace the Appetize build
 - [x] Noto Sans Thai is bundled
 - [x] Copy-phone action writes to clipboard and displays a toast
 - [x] Pending finance, successful payment, one installment, and multiple installments are represented

@@ -77,3 +77,13 @@ npm start
 ```
 
 Then open with Expo Go or an emulator.
+
+## Appetize iPad build
+
+Create the standalone iOS Simulator release (JavaScript is embedded; Metro is not required):
+
+```powershell
+npx eas-cli build --platform ios --profile ios-simulator --clear-cache
+```
+
+Upload the resulting `.tar.gz` through **Settings → Update build** in Appetize, then start a new session with **iPad Pro 11-inch** in landscape. If an updated build still shows old seed rows, clear the Appetize device app data before starting the new session.
