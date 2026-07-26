@@ -1,0 +1,262 @@
+```plantuml
+@startuml
+
+title
+<b>Life Planning – End-to-End Flow</b>
+<font color="#64748B">Prospect, Product Configuration, Calculation, PDF, and Quotation</font>
+end title
+
+skinparam backgroundColor #F8FAFC
+skinparam shadowing false
+skinparam roundcorner 18
+skinparam dpi 150
+skinparam defaultFontName Arial
+skinparam defaultFontColor #1E293B
+
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor #94A3B8
+    FontColor #1E293B
+    FontSize 12
+
+    DiamondBackgroundColor #FFF7ED
+    DiamondBorderColor #F59E0B
+    DiamondFontColor #92400E
+
+    StartColor #2563EB
+    EndColor #2563EB
+    BarColor #2563EB
+    ArrowColor #64748B
+}
+
+skinparam note {
+    BackgroundColor #FFFBEB
+    BorderColor #FBBF24
+    FontColor #78350F
+}
+
+skinparam legend {
+    BackgroundColor #FFFFFF
+    BorderColor #CBD5E1
+    FontColor #334155
+}
+
+start
+
+partition "1. Access & Authorization" #DBEAFE {
+
+    :User logs in to TL Smart;
+    :Validate menu access and permissions;
+
+    if (Life Planning permission granted?) then (Yes)
+        :Open the Life Planning page;
+    else (No)
+        :Display an access-denied message;
+        stop
+    endif
+}
+
+partition "2. Prospect Management" #E0F2FE {
+
+    :Search for or add a prospect;
+
+    if (New prospect?) then (Yes)
+
+        :Enter prospect information;
+        :Check for duplicate prospects;
+
+        if (Duplicate prospect found?) then (Yes)
+
+            :Display matching prospect records;
+            :Select an existing prospect\nor cancel the transaction;
+
+            if (Use existing prospect?) then (Yes)
+                :Load existing prospect information;
+            else (Cancel)
+                stop
+            endif
+
+        else (No)
+
+            :Create a new prospect;
+            :Save prospect information;
+
+        endif
+
+    else (No)
+
+        :Search for and select an existing prospect;
+        :Load prospect information;
+
+    endif
+}
+
+partition "3. Product Selection" #EDE9FE {
+
+    :Select a product;
+    :Retrieve product configuration;
+
+    note right
+    Configuration examples:
+    • Coverage Age
+    • Premium Payment Age
+    • Minimum / Maximum Sum Assured
+    • Minimum Top-up Premium
+    • Rider Configuration
+    end note
+
+    :Validate product eligibility;
+
+    if (Product eligibility passed?) then (Yes)
+        :Display product configuration;
+    else (No)
+        :Display product eligibility error;
+        stop
+    endif
+}
+
+partition "4. Life Planning Input" #F3E8FF {
+
+    :Define coverage age;
+    :Define main premium segments;
+
+    note right
+    All age ranges must:
+    • Be in ascending order
+    • Be continuous
+    • Not overlap
+    end note
+
+    :Define top-up premium segments;
+    :Select riders;
+    :Define accumulation goals;
+    :Define retirement plan;
+    :Define withdrawal plan;
+}
+
+partition "5. Validation" #FEF3C7 {
+
+    :Validate Life Planning information;
+
+    note right
+    Validation includes:
+    • Age ranges
+    • Premium amounts
+    • Sum Assured
+    • Riders
+    • Retirement Plan
+    • Withdrawal Plan
+    end note
+
+    if (Validation passed?) then (Yes)
+        :Prepare calculation request;
+    else (No)
+        :Display validation errors;
+        :Return to the input screen;
+        stop
+    endif
+}
+
+partition "6. Calculation Engine" #CCFBF1 {
+
+    :Calculate minimum / maximum Sum Assured;
+    :Calculate main premium;
+    :Calculate top-up premium;
+    :Calculate rider premium;
+
+    :Calculate annual projections;
+    :Calculate Account Value;
+    :Calculate Cash Value;
+    :Calculate Death Benefit;
+
+    :Calculate accumulation goals;
+    :Calculate retirement benefits;
+    :Calculate withdrawal plan;
+}
+
+partition "7. Calculation Result" #D1FAE5 {
+
+    :Display calculation results;
+
+    note right
+    Results by policy year:
+    • Main Premium
+    • Top-up Premium
+    • Rider Premium
+    • Account Value
+    • Cash Value
+    • Death Benefit
+    • Withdrawal Amount
+    end note
+
+    :Save the Life Planning draft;
+    :Save the calculation version;
+}
+
+partition "8. Document Generation" #F1F5F9 {
+
+    if (Generate proposal PDF?) then (Yes)
+
+        :Validate calculation version;
+        :Generate Table Ng.;
+        :Generate proposal PDF;
+        :Save PDF version;
+
+        if (PDF generated successfully?) then (Yes)
+            :Display or download proposal PDF;
+        else (No)
+            :Display PDF generation error;
+            stop
+        endif
+
+    else (No)
+
+        :Keep the transaction as Draft;
+
+    endif
+}
+
+partition "9. Quotation Integration" #E0E7FF {
+
+    if (Submit to Quotation?) then (Yes)
+
+        :Validate calculation version;
+        :Validate PDF version;
+        :Validate prospect and product information;
+
+        if (Information ready for submission?) then (Yes)
+
+            :Submit data to Quotation;
+            :Save Quotation reference;
+            :Change status to Submitted;
+
+        else (No)
+
+            :Display incomplete information;
+            stop
+
+        endif
+
+    else (No)
+
+        :Keep status as Draft;
+
+    endif
+}
+
+stop
+
+legend right
+|= Color |= Process Group |
+|<#DBEAFE>| Access & Authorization |
+|<#E0F2FE>| Prospect Management |
+|<#EDE9FE>| Product Selection |
+|<#F3E8FF>| Life Planning Input |
+|<#FEF3C7>| Validation |
+|<#CCFBF1>| Calculation Engine |
+|<#D1FAE5>| Calculation Result |
+|<#F1F5F9>| Document Generation |
+|<#E0E7FF>| Quotation Integration |
+endlegend
+
+@enduml

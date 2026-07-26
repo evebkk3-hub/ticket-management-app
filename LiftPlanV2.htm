@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Life Planning - Full Prototype Based on Self Design Tool</title>
+<style>
+:root{
+  --primary:#2f73b9;--primary-dark:#1f5f9f;--bg:#f3f3f3;--card:#fff;
+  --line:#78a6d3;--input:#fff2cc;--readonly:#e7e6e6;--text:#243447;
+  --muted:#68798b;--ok:#14804a;--warn:#b45309;--danger:#c62828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Tahoma,"Noto Sans Thai",Arial,sans-serif;background:var(--bg);color:var(--text)}
+header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:16px 22px;box-shadow:0 3px 12px #0002}
+header h1{margin:0;font-size:20px}header p{margin:5px 0 0;font-size:12px;opacity:.9}
+main{max-width:1500px;margin:auto;padding:18px}
+.toolbar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+button{border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer}
+.primary{background:var(--primary);color:#fff}.secondary{background:#eaf4fc;color:#0d68a0;border:1px solid #afd2ea}
+.ghost{background:#fff;border:1px solid var(--line);color:#42566d}.danger{background:#ef5a2a;color:#fff}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px}
+.stack{display:flex;flex-direction:column;gap:15px}
+.card{background:var(--card);border:2px solid var(--primary);border-radius:0;overflow:hidden;box-shadow:none}
+.card-header{background:var(--primary);border-bottom:1px solid var(--primary-dark);padding:12px 15px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.card-header h2{margin:0;color:#fff;font-size:15px;text-align:center;width:100%}.card-body{padding:18px 26px}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.field label{display:block;font-size:12px;font-weight:700;color:#486178;margin-bottom:6px}
+.field input,.field select{width:100%;height:39px;border:1px solid #aebdd0;border-radius:6px;padding:7px 9px;background:var(--input);font-size:14px}
+.readonly{background:var(--readonly)!important;color:#586879}.hint{font-size:11px;color:var(--muted);margin-top:4px}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:980px}
+th{background:#f2f6fa;color:#4d647a;font-size:12px;padding:9px;text-align:left;border-bottom:1px solid var(--line)}
+td{padding:8px 9px;border-bottom:1px solid #edf1f5;font-size:13px;vertical-align:middle}
+td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd0;border-radius:6px;padding:6px 8px;background:var(--input)}
+.ro{background:var(--readonly);padding:8px 10px;border-radius:6px;text-align:right;font-weight:700;min-width:110px}
+.icon{width:32px;height:32px;padding:0;background:#fff0ed;color:var(--danger);border:1px solid #ffc8ba}
+.notice{padding:10px 12px;background:#fff8df;border:1px solid #efd889;color:#705d15;border-radius:8px;font-size:12px;margin-bottom:12px}
+.status-box{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:700;margin-bottom:12px}
+.status-ok{background:#effaf4;border:1px solid #bfe5cd;color:var(--ok)}
+.status-fail{background:#fff0f0;border:1px solid #ffcaca;color:var(--danger)}
+.status-neutral{background:#f3f6fa;border:1px solid var(--line);color:#5b6d80}
+.validation{display:none;margin-top:10px;padding:10px 12px;border-radius:8px;font-size:12px}
+.validation.error{display:block;background:#fff0f0;border:1px solid #ffcaca;color:var(--danger)}
+.summary{position:sticky;top:16px}.summary-row{display:flex;justify-content:space-between;gap:12px;padding:12px 15px;border-bottom:1px solid #edf1f5;font-size:13px}
+.summary-row span{color:var(--muted)}.summary-row strong{text-align:right}.summary-total{background:#effaf4;color:var(--ok);font-size:16px}
+.tabs{display:flex;border-bottom:1px solid var(--line);overflow:auto}
+.tab{background:#fff;color:#53677b;border-radius:0;padding:11px 16px;border-bottom:3px solid transparent}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.panel{display:none}.panel.active{display:block}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fbfdff}
+.kpi small{display:block;color:var(--muted);margin-bottom:6px}.kpi strong{font-size:17px}
+.rider-group{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.rider-title{background:#2f73b9;color:#fff;padding:9px 12px;font-weight:700;font-size:13px}
+.rider-grid{display:grid;grid-template-columns:220px 1fr;gap:12px;padding:12px}
+.rider-list{display:flex;flex-direction:column;gap:8px}
+.rider-item{display:grid;grid-template-columns:90px 1fr;gap:8px;align-items:center}
+.rider-item input[type=checkbox]{width:auto;height:auto}
+.rider-detail table{min-width:650px}
+#proposalPrintArea table th,#proposalPrintArea table td{border:1px solid #cfd9e6;padding:8px;text-align:left;font-size:12px}
+#proposalPrintArea table th{background:#edf6fd;color:#1f5f9f}
+.pdf-label{font-weight:700;background:#f5f7fb;width:32%}
+.toast{display:none;position:fixed;right:18px;bottom:18px;background:#1f2937;color:#fff;padding:11px 15px;border-radius:8px;z-index:20}
+.toast.show{display:block}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.summary{position:static}}
+@media(max-width:760px){main{padding:10px}.grid,.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.grid,.kpis{grid-template-columns:1fr}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Life Planning - Self Design Tool Prototype</h1>
+  <p>หน้าจอ ลำดับข้อมูล สี และรูปแบบ Input/Calculated Field ยึดตามไฟล์ Life Verse_Life Planning_Self Design Tool v1.5</p>
+</header>
+
+<main>
+<div class="notice" style="margin-bottom:14px"><strong>UI Reference:</strong> Life Verse_Life Planning_Self Design Tool_v1.5_16072026_Unlock for Dev 1.xlsm — ช่องสีเหลืองคือข้อมูลที่ผู้ใช้กรอก และช่องสีเทาคือค่าที่ระบบคำนวณหรือดึงจาก Configuration</div>
+<div class="toolbar">
+  <div class="actions">
+    <button class="secondary" onclick="toast('ย้อนกลับ')">ย้อนกลับ</button>
+    <button class="primary" onclick="calculate()">คำนวณแผน</button>
+  </div>
+  <div class="actions">
+    <button class="ghost" onclick="saveDraft()">บันทึกร่าง</button>
+    <button class="ghost" onclick="loadDraft()">โหลดร่าง</button>
+    <button class="danger" onclick="resetAll()">ล้างค่า</button>
+  </div>
+</div>
+
+<div class="layout">
+<div class="stack">
+
+<section class="card">
+  <div class="card-header"><h2>1. เลือกการชำระเบี้ยประกันภัย</h2></div>
+  <div class="card-body">
+    <div class="grid">
+      <div class="field"><label>Product</label><select id="product" onchange="sync()"><option>UWB</option><option>UWD</option></select></div>
+      <div class="field"><label>อายุปัจจุบัน</label><input id="currentAge" type="number" value="30" oninput="markPremiumStale()"></div>
+      <div class="field"><label>อายุสิ้นสุดความคุ้มครอง</label><input id="coverageAge" type="number" value="99" oninput="sync()"></div>
+      <div class="field"><label>อายุสิ้นสุดชำระเบี้ย</label><input id="payEndAge" type="number" value="59" oninput="markPremiumStale()"></div>
+      <div class="field"><label>ระยะเวลาคุ้มครอง</label><input id="coverageYears" class="readonly" readonly></div>
+      <div class="field"><label>ระยะเวลาชำระเบี้ย</label><input id="payYears" class="readonly" readonly></div>
+      <div class="field"><label>EM (%)</label><input id="em" type="number" value="0"></div>
+      <div class="field"><label>Payment Mode</label><select id="paymentMode"><option>รายปี</option><option>ราย 6 เดือน</option><option>ราย 3 เดือน</option><option>รายเดือน</option></select></div>
+    </div>
+    <div id="vHeader" class="validation"></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div><h2>2. กำหนดเบี้ยประกันภัย</h2><div id="premiumStatus" class="hint">Premium Segment พร้อมใช้งาน</div></div>
+    <button class="secondary" onclick="regeneratePremium()">Re-generate Premium Segment</button>
+  </div>
+  <div class="card-body">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>อายุเริ่ม</th><th>อายุสิ้นสุด</th><th>RP/ปี</th><th>Top-up/ปี</th><th>รวม/ปี</th><th></th></tr></thead>
+        <tbody id="premiumRows"></tbody>
+      </table>
+    </div>
+    <button class="secondary" style="margin-top:10px" onclick="addPremiumRow()">+ เพิ่มช่วงอายุ</button>
+    <div id="vPremium" class="validation"></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><h2>3. เป้าหมายการเกษียณ</h2></div>
+  <div class="card-body">
+    <div id="avBox" class="status-box status-neutral"><span>AV Check:</span><strong id="avCheck">ยังไม่คำนวณ</strong></div>
+    <div id="anBox" class="status-box status-neutral"><span>AN Check:</span><strong id="anCheck">ยังไม่คำนวณ</strong></div>
+
+    <div class="grid">
+      <div class="field"><label>ระบุเป้าหมายเกษียณ</label><select id="goalEnabled" onchange="toggleRetirement();sync()"><option value="Y">Yes</option><option value="N">No</option></select></div>
+      <div class="field"><label>อายุเริ่มรับเงินเกษียณ</label><input id="retireStartAge" type="number" value="70" oninput="sync()"><div class="hint">Config 55–70 ปี</div></div>
+      <div class="field"><label>รับเงินถึงอายุ</label><input id="retireEndAge" type="number" value="99" oninput="sync()"></div>
+      <div class="field"><label>ความถี่</label><select id="retireFrequency" onchange="sync()"><option value="monthly">รายเดือน</option><option value="yearly">รายปี</option></select></div>
+      <div class="field"><label>เงินเกษียณที่ต้องการรับ</label><input id="retireAmount" type="number" value="10000" step="100"></div>
+      <div class="field"><label>Minimum</label><input id="retireMin" class="readonly" readonly value="5,000 บาท"></div>
+      <div class="field"><label>Maximum</label><input id="retireMax" class="readonly" readonly></div>
+      <div class="field"><label>ปีกรมธรรม์เริ่มรับเงิน</label><input id="retirePolicyYear" class="readonly" readonly></div>
+      <div class="field"><label>Account Value ก่อนถอนครั้งแรก</label><input id="retireAVBefore" class="readonly" readonly value="-"></div>
+      <div class="field"><label>เงินเกษียณสุทธิรวม</label><input id="retireActual" class="readonly" readonly value="-"></div>
+      <div class="field"><label>Surcharge %</label><input id="retireSurchargeRate" type="number" value="0" step="0.01"></div>
+      <div class="field"><label>Surcharge Amount</label><input id="retireSurchargeAmount" class="readonly" readonly value="-"></div>
+      <div class="field"><label>Total Withdrawal</label><input id="retireTotalWithdrawal" class="readonly" readonly value="-"></div>
+    </div>
+    <div id="vGoal" class="validation"></div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <div><h2>4. การถอนเงิน</h2><div class="hint">รองรับถอนครั้งเดียวและถอนประจำ</div></div>
+    <button class="secondary" onclick="addWithdrawal()">+ เพิ่มแผนถอน</button>
+  </div>
+  <div class="card-body">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>ประเภท</th><th>อายุเริ่มถอน</th><th>ถอนถึงอายุ</th><th>ความถี่</th><th>จำนวนเงินต่อครั้ง</th><th>ค่าธรรมเนียม %</th><th>AV ก่อนถอนครั้งแรก</th><th>ยอดถอนสุทธิรวม</th><th>ปีกรมธรรม์</th><th></th></tr>
+        </thead>
+        <tbody id="withdrawRows"></tbody>
+      </table>
+    </div>
+    <div id="vWithdraw" class="validation"></div>
+  </div>
+</section>
+
+
+<section class="card">
+  <div class="card-header">
+    <div>
+      <h2>5. เลือกสัญญาเพิ่มเติม</h2>
+      <div class="hint">เลือกสัญญาเพิ่มเติมและตรวจสอบช่วงอายุ ความคุ้มครอง และเบี้ยประกัน</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="notice">
+      คำเตือน: มูลค่าบัญชีกรมธรรม์ของสัญญาหลักต้องเพียงพอสำหรับค่าใช้จ่ายของสัญญาเพิ่มเติมตลอดช่วงความคุ้มครอง
+    </div>
+
+    <div class="grid" style="margin-bottom:14px">
+      <div class="field">
+        <label>ระบุสัญญาเพิ่มเติม</label>
+        <select id="riderEnabled" onchange="toggleRiders()">
+          <option value="Y">ต้องการ</option>
+          <option value="N">ไม่ต้องการ</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>วิธีชำระเบี้ย Rider</label>
+        <select id="riderPaymentMode">
+          <option>หักจาก Account Value</option>
+          <option>รวมในเบี้ยหลัก</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="riderContainer">
+      <div class="rider-group">
+        <div class="rider-title">อุบัติเหตุ ฆาตกรรม และจลาจล</div>
+        <div class="rider-grid">
+          <div class="rider-list">
+            <label class="rider-item"><input type="checkbox" data-rider="PA1" onchange="syncRiderTable()"> อ.1</label>
+            <label class="rider-item"><input type="checkbox" data-rider="PA2" onchange="syncRiderTable()"> อ.2</label>
+            <label class="rider-item"><input type="checkbox" data-rider="PA3" onchange="syncRiderTable()"> อ.3</label>
+          </div>
+          <div class="rider-detail table-wrap">
+            <table>
+              <thead><tr><th>Rider</th><th>ผลประโยชน์</th><th>คุ้มครองถึงอายุ</th><th>ช่วงอายุผู้เอาประกัน</th><th>เบี้ยประกัน</th></tr></thead>
+              <tbody id="riderPA"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="rider-group">
+        <div class="rider-title">สุขภาพ</div>
+        <div class="rider-grid">
+          <div class="rider-list">
+            <label class="rider-item"><input type="checkbox" data-rider="HC_STD" onchange="syncRiderTable()"> แผนทีเอชซี มาตรฐาน</label>
+            <label class="rider-item"><input type="checkbox" data-rider="HC_PLUS" onchange="syncRiderTable()"> แผนทีเอชซี พลัส</label>
+            <label class="rider-item"><input type="checkbox" data-rider="HC_PREM" onchange="syncRiderTable()"> แผนทีเอชซี พรีเมียม</label>
+            <label class="rider-item"><input type="checkbox" data-rider="OP4" onchange="syncRiderTable()"> ผู้ป่วยนอก OP4</label>
+          </div>
+          <div class="rider-detail table-wrap">
+            <table>
+              <thead><tr><th>Rider</th><th>แผน</th><th>คุ้มครองถึงอายุ</th><th>ช่วงอายุผู้เอาประกัน</th><th>เบี้ยประกัน</th></tr></thead>
+              <tbody id="riderHealth"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="rider-group">
+        <div class="rider-title">ค่ารักษาพยาบาลด้วยโรคร้ายแรง</div>
+        <div class="rider-grid">
+          <div class="rider-list">
+            <label class="rider-item"><input type="checkbox" data-rider="CI_HOSP" onchange="syncRiderTable()"> รพ.</label>
+            <label class="rider-item"><input type="checkbox" data-rider="CI_PLUS" onchange="syncRiderTable()"> แผนซีไอ เฮลท์ พลัส</label>
+            <label class="rider-item"><input type="checkbox" data-rider="CI2" onchange="syncRiderTable()"> ซีไอ 2</label>
+          </div>
+          <div class="rider-detail table-wrap">
+            <table>
+              <thead><tr><th>Rider</th><th>ผลประโยชน์</th><th>คุ้มครองถึงอายุ</th><th>ช่วงอายุผู้เอาประกัน</th><th>เบี้ยประกัน</th></tr></thead>
+              <tbody id="riderCI"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="rider-group">
+        <div class="rider-title">โรคร้ายแรง</div>
+        <div class="rider-grid">
+          <div class="rider-list">
+            <label class="rider-item"><input type="checkbox" data-rider="CI_LUMP" onchange="syncRiderTable()"> ทร.48</label>
+            <label class="rider-item"><input type="checkbox" data-rider="CANCER" onchange="syncRiderTable()"> Cancer Care</label>
+          </div>
+          <div class="rider-detail table-wrap">
+            <table>
+              <thead><tr><th>Rider</th><th>ผลประโยชน์</th><th>คุ้มครองถึงอายุ</th><th>ช่วงอายุผู้เอาประกัน</th><th>เบี้ยประกัน</th></tr></thead>
+              <tbody id="riderCritical"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="vRider" class="validation"></div>
+  </div>
+</section>
+
+<section class="card" id="resultCard">
+  <div class="card-header"><h2>6. ผลการคำนวณและ Projection</h2></div>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab(0)">สรุป</button>
+    <button class="tab" onclick="switchTab(1)">Projection รายปี</button>
+    <button class="tab" onclick="switchTab(2)">Projection รายเดือน</button>
+  </div>
+
+  <div class="card-body panel active">
+    <div class="kpis">
+      <div class="kpi"><small>เบี้ยรวมปีแรก</small><strong id="kAnnual">0 บาท</strong></div>
+      <div class="kpi"><small>เบี้ยสะสมทั้งหมด</small><strong id="kTotalPremium">0 บาท</strong></div>
+      <div class="kpi"><small>เงินเกษียณสุทธิรวม</small><strong id="kRetirementPaid">0 บาท</strong></div>
+      <div class="kpi"><small>ถอนอื่นสุทธิรวม</small><strong id="kOtherWithdrawal">0 บาท</strong></div>
+      <div class="kpi"><small>Surcharge รวม</small><strong id="kSurcharge">0 บาท</strong></div>
+      <div class="kpi"><small>Account Value สิ้นสุดแผน</small><strong id="kFinalAV">0 บาท</strong></div>
+      <div class="kpi"><small>Death Benefit สิ้นสุดแผน</small><strong id="kDeath">0 บาท</strong></div>
+      <div class="kpi"><small>Calculation Version</small><strong id="kVersion">V1</strong></div>
+    </div>
+  </div>
+
+  <div class="card-body panel">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>อายุ</th><th>ปีกรมธรรม์</th><th>RP</th><th>Top-up</th><th>Rider Charge</th><th>Retirement Net</th><th>Surcharge</th><th>Withdrawal Plan</th><th>AV ก่อนถอน</th><th>AV หลังถอน</th><th>Death Benefit</th></tr></thead>
+        <tbody id="annualProjection"></tbody>
+      </table>
+    </div>
+    <button class="secondary" style="margin-top:10px" onclick="exportAnnual()">Export CSV รายปี</button>
+  </div>
+
+  <div class="card-body panel">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>เดือนที่</th><th>อายุ</th><th>เดือนกรมธรรม์</th><th>RP</th><th>Top-up</th><th>Rider Charge</th><th>Retirement Net</th><th>Surcharge</th><th>Withdrawal Plan</th><th>AV ก่อนถอน</th><th>AV หลังถอน</th><th>Death Benefit</th></tr></thead>
+        <tbody id="monthlyProjection"></tbody>
+      </table>
+    </div>
+    <button class="secondary" style="margin-top:10px" onclick="exportMonthly()">Export CSV รายเดือน</button>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-header"><h2>7. เอกสารและใบเสนอขาย</h2></div>
+  <div class="card-body">
+    <div class="grid">
+      <button class="ghost" onclick="newVersion()">Save Calculation Version</button>
+      <button class="secondary" id="generatePdfBtn" onclick="generateProposalPDF(false)">Generate PDF</button>
+      <button class="secondary" id="downloadProposalBtn" onclick="generateProposalPDF(true)">Download Proposal</button>
+      <button class="primary" onclick="toast('จำลอง Submit to Quotation')">Submit to Quotation</button>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<aside class="card summary">
+  <div class="card-header"><h2>Summary</h2></div>
+  <div class="summary-row"><span>UI Reference</span><strong>Self Design Tool v1.5</strong></div>
+  <div class="summary-row"><span>สีเหลือง</span><strong>Input</strong></div>
+  <div class="summary-row"><span>สีเทา</span><strong>Calculated</strong></div>
+  <div class="summary-row"><span>Product</span><strong id="sProduct">UWB</strong></div>
+  <div class="summary-row"><span>อายุปัจจุบัน</span><strong id="sAge">30 ปี</strong></div>
+  <div class="summary-row"><span>คุ้มครองถึงอายุ</span><strong id="sCoverage">99 ปี</strong></div>
+  <div class="summary-row"><span>จำนวน Premium Segment</span><strong id="sPremiumSegments">0</strong></div>
+  <div class="summary-row"><span>เกษียณเริ่มอายุ</span><strong id="sRetireStart">70 ปี</strong></div>
+  <div class="summary-row"><span>รับเงินถึงอายุ</span><strong id="sRetireEnd">99 ปี</strong></div>
+  <div class="summary-row"><span>จำนวนแผนถอน</span><strong id="sWithdrawCount">1</strong></div>
+  <div class="summary-row"><span>AV Check</span><strong id="sAV">-</strong></div>
+  <div class="summary-row"><span>AN Check</span><strong id="sAN">-</strong></div>
+  <div class="summary-row summary-total"><span>สถานะ</span><strong id="sStatus">Draft</strong></div>
+  <div style="padding:14px;display:grid;gap:8px">
+    <button class="primary" onclick="calculate()">คำนวณแผน</button>
+    <button class="secondary" onclick="document.getElementById('resultCard').scrollIntoView({behavior:'smooth'})">ดู Projection</button>
+  </div>
+</aside>
+</div>
+</main>
+
+
+<div id="proposalPrintArea" style="display:none;background:#fff;color:#222;padding:24px;width:1100px">
+  <div style="border-bottom:3px solid #2f73b9;padding-bottom:12px;margin-bottom:18px">
+    <h1 style="margin:0;color:#1f5f9f;font-size:26px">Life Planning Proposal</h1>
+    <div style="margin-top:6px;color:#666">Calculation Version: <span id="pdfVersion">V1</span></div>
+  </div>
+
+  <h2 style="color:#1f5f9f">1. เลือกการชำระเบี้ยประกันภัย</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <tbody id="pdfBasicInfo"></tbody>
+  </table>
+
+  <h2 style="color:#1f5f9f">2. กำหนดเบี้ยประกันภัย</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <thead><tr><th>Age Range</th><th>RP / Year</th><th>Top-up / Year</th><th>Total / Year</th></tr></thead>
+    <tbody id="pdfPremiumRows"></tbody>
+  </table>
+
+  <h2 style="color:#1f5f9f">3. เป้าหมายการเกษียณ</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <tbody id="pdfRetirement"></tbody>
+  </table>
+
+  <h2 style="color:#1f5f9f">4. การถอนเงิน</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <thead><tr><th>Type</th><th>Start Age</th><th>End Age</th><th>Frequency</th><th>Amount</th></tr></thead>
+    <tbody id="pdfWithdrawals"></tbody>
+  </table>
+
+  <h2 style="color:#1f5f9f">5. เลือกสัญญาเพิ่มเติม</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <thead><tr><th>Rider</th><th>Plan</th><th>Coverage Age</th><th>Premium / Year</th></tr></thead>
+    <tbody id="pdfRiders"></tbody>
+  </table>
+
+  <h2 style="color:#1f5f9f">6. Calculation Summary</h2>
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    <tbody id="pdfSummary"></tbody>
+  </table>
+
+  <div style="margin-top:20px;padding:12px;background:#fff8df;border:1px solid #efd889;font-size:12px">
+    This document is generated from the Life Planning UX prototype. Calculation formulas are for prototype demonstration only.
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const num=id=>Number($(id).value||0);
+const fmt=n=>Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:0})+' บาท';
+
+let premiumRows=[
+  {start:30,end:39,rp:50000,topup:10000},
+  {start:40,end:49,rp:40000,topup:0},
+  {start:50,end:59,rp:100000,topup:0}
+];
+let withdrawals=[
+  {type:'ถอนครั้งเดียว',startAge:55,endAge:55,frequency:'ครั้งเดียว',amount:500000,feeRate:0}
+];
+let annualProjection=[],monthlyProjection=[],premiumStale=false,version=1;
+const riderCatalog={
+  PA1:{group:'PA',name:'อ.1',plan:'ผลประโยชน์ อ.1',coverAge:70,ageRange:'18-70',premium:1200},
+  PA2:{group:'PA',name:'อ.2',plan:'ผลประโยชน์ อ.2',coverAge:70,ageRange:'18-70',premium:1800},
+  PA3:{group:'PA',name:'อ.3',plan:'ผลประโยชน์ อ.3',coverAge:70,ageRange:'18-70',premium:2500},
+  HC_STD:{group:'HEALTH',name:'แผนทีเอชซี มาตรฐาน',plan:'แผน 1',coverAge:99,ageRange:'40-99',premium:8200},
+  HC_PLUS:{group:'HEALTH',name:'แผนทีเอชซี พลัส',plan:'H 2000 Deduct 0',coverAge:99,ageRange:'40-99',premium:16350},
+  HC_PREM:{group:'HEALTH',name:'แผนทีเอชซี พรีเมียม',plan:'Premium Plan',coverAge:99,ageRange:'40-99',premium:22000},
+  OP4:{group:'HEALTH',name:'ผู้ป่วยนอก OP4',plan:'OPD 4',coverAge:70,ageRange:'18-70',premium:6500},
+  CI_HOSP:{group:'CI',name:'รพ.',plan:'Hospital Cash',coverAge:70,ageRange:'18-70',premium:3800},
+  CI_PLUS:{group:'CI',name:'แผนซีไอ เฮลท์ พลัส',plan:'CI Health Plus',coverAge:85,ageRange:'18-65',premium:7200},
+  CI2:{group:'CI',name:'ซีไอ 2',plan:'CI 2',coverAge:85,ageRange:'18-65',premium:5600},
+  CI_LUMP:{group:'CRITICAL',name:'ทร.48',plan:'Critical Illness 48',coverAge:85,ageRange:'18-65',premium:9100},
+  CANCER:{group:'CRITICAL',name:'Cancer Care',plan:'Cancer Lump Sum',coverAge:85,ageRange:'18-65',premium:7800}
+};
+let selectedRiders=[];
+
+function renderPremium(){
+  $('premiumRows').innerHTML=premiumRows.map((r,i)=>`<tr>
+    <td>${i+1}</td>
+    <td><input type="number" value="${r.start}" onchange="changePremium(${i},'start',this.value)"></td>
+    <td><input type="number" value="${r.end}" onchange="changePremium(${i},'end',this.value)"></td>
+    <td><input type="number" value="${r.rp}" step="1000" onchange="changePremium(${i},'rp',this.value)"></td>
+    <td><input type="number" value="${r.topup}" step="1000" onchange="changePremium(${i},'topup',this.value)"></td>
+    <td><div class="ro">${fmt(r.rp+r.topup)}</div></td>
+    <td><button class="icon" onclick="premiumRows.splice(${i},1);renderPremium()">×</button></td>
+  </tr>`).join('');
+  sync();
+}
+function changePremium(i,k,v){premiumRows[i][k]=Number(v||0);renderPremium()}
+function addPremiumRow(){
+  const last=premiumRows.at(-1),start=last?last.end+1:num('currentAge');
+  premiumRows.push({start,end:start+9,rp:0,topup:0});renderPremium();
+}
+function markPremiumStale(){
+  premiumStale=true;
+  $('premiumStatus').textContent='ข้อมูลข้อ 1 เปลี่ยนแล้ว กรุณา Re-generate';
+  $('premiumStatus').style.color=varWarn();
+  sync();
+}
+function varWarn(){return '#b45309'}
+function regeneratePremium(){
+  const start=num('currentAge'),end=num('payEndAge');
+  if(end<start){toast('ช่วงอายุไม่ถูกต้อง');return}
+  const old=[...premiumRows];
+  premiumRows=[];
+  let cursor=start;
+  while(cursor<=end){
+    const e=Math.min(cursor+9,end);
+    const overlap=old.find(x=>cursor>=x.start&&cursor<=x.end);
+    premiumRows.push({start:cursor,end:e,rp:overlap?overlap.rp:0,topup:overlap?overlap.topup:0});
+    cursor=e+1;
+  }
+  premiumStale=false;
+  $('premiumStatus').textContent='Re-generate เรียบร้อย';
+  $('premiumStatus').style.color='#14804a';
+  renderPremium();
+}
+
+function renderWithdrawals(results={}){
+  $('withdrawRows').innerHTML=withdrawals.map((r,i)=>{
+    const recurring=r.type==='ถอนประจำ',rs=results[i]||{};
+    return `<tr>
+      <td>${i+1}</td>
+      <td><select onchange="changeWithdrawal(${i},'type',this.value)">
+        <option ${r.type==='ถอนครั้งเดียว'?'selected':''}>ถอนครั้งเดียว</option>
+        <option ${r.type==='ถอนประจำ'?'selected':''}>ถอนประจำ</option>
+      </select></td>
+      <td><input type="number" value="${r.startAge}" onchange="changeWithdrawal(${i},'startAge',this.value)"></td>
+      <td><input type="number" value="${r.endAge}" ${recurring?'':'disabled'} onchange="changeWithdrawal(${i},'endAge',this.value)"></td>
+      <td><select ${recurring?'':'disabled'} onchange="changeWithdrawal(${i},'frequency',this.value)">
+        <option ${r.frequency==='ครั้งเดียว'?'selected':''}>ครั้งเดียว</option>
+        <option ${r.frequency==='รายปี'?'selected':''}>รายปี</option>
+        <option ${r.frequency==='รายเดือน'?'selected':''}>รายเดือน</option>
+      </select></td>
+      <td><input type="number" value="${r.amount}" step="1000" onchange="changeWithdrawal(${i},'amount',this.value)"></td>
+      <td><input type="number" value="${r.feeRate}" step="0.01" onchange="changeWithdrawal(${i},'feeRate',this.value)"></td>
+      <td><div class="ro">${rs.beforeAV!==undefined?fmt(rs.beforeAV):'-'}</div></td>
+      <td><div class="ro">${rs.net!==undefined?fmt(rs.net):'-'}</div></td>
+      <td><div class="ro">${rs.policyYear!==undefined?rs.policyYear:'-'}</div></td>
+      <td><button class="icon" onclick="withdrawals.splice(${i},1);renderWithdrawals()">×</button></td>
+    </tr>`;
+  }).join('');
+  sync();
+}
+function addWithdrawal(){
+  const age=Math.max(num('currentAge')+1,55);
+  withdrawals.push({type:'ถอนครั้งเดียว',startAge:age,endAge:age,frequency:'ครั้งเดียว',amount:0,feeRate:0});
+  renderWithdrawals();
+}
+function changeWithdrawal(i,k,v){
+  withdrawals[i][k]=['type','frequency'].includes(k)?v:Number(v||0);
+  if(k==='type'){
+    if(v==='ถอนครั้งเดียว'){
+      withdrawals[i].endAge=withdrawals[i].startAge;withdrawals[i].frequency='ครั้งเดียว';
+    }else{
+      withdrawals[i].endAge=Math.max(withdrawals[i].startAge,withdrawals[i].endAge||withdrawals[i].startAge);
+      if(withdrawals[i].frequency==='ครั้งเดียว')withdrawals[i].frequency='รายปี';
+    }
+  }
+  if(k==='startAge'&&withdrawals[i].type==='ถอนครั้งเดียว')withdrawals[i].endAge=withdrawals[i].startAge;
+  renderWithdrawals();
+}
+
+function premiumAt(age){
+  const r=premiumRows.find(x=>age>=x.start&&age<=x.end);
+  return r?{rp:r.rp,topup:r.topup}:{rp:0,topup:0};
+}
+function estimateRetireMax(){
+  const age=num('currentAge'),retire=num('retireStartAge');
+  const years=Math.max(0,retire-age);
+  const avg=premiumRows.length?premiumRows.reduce((s,r)=>s+r.rp+r.topup,0)/premiumRows.length:0;
+  const rough=avg*years*1.4;
+  return $('retireFrequency').value==='monthly'?Math.max(5000,rough/12):Math.max(5000,rough);
+}
+function sync(){
+  const age=num('currentAge'),coverage=num('coverageAge'),pay=num('payEndAge');
+  $('coverageYears').value=Math.max(0,coverage-age+1)+' ปี';
+  $('payYears').value=Math.max(0,pay-age+1)+' ปี';
+  $('retirePolicyYear').value=Math.max(0,num('retireStartAge')-age+1);
+  $('retireMax').value=fmt(estimateRetireMax());
+
+  $('sProduct').textContent=$('product').value;
+  $('sAge').textContent=age+' ปี';
+  $('sCoverage').textContent=coverage+' ปี';
+  $('sPremiumSegments').textContent=premiumRows.length;
+  $('sRetireStart').textContent=num('retireStartAge')+' ปี';
+  $('sRetireEnd').textContent=num('retireEndAge')+' ปี';
+  $('sWithdrawCount').textContent=withdrawals.length;
+}
+function toggleRetirement(){
+  const enabled=$('goalEnabled').value==='Y';
+  ['retireStartAge','retireEndAge','retireFrequency','retireAmount','retireSurchargeRate'].forEach(id=>$(id).disabled=!enabled);
+}
+function showValidation(id,arr){
+  const el=$(id);el.className=arr.length?'validation error':'validation';el.innerHTML=arr.join('<br>');
+}
+function validate(){
+  const h=[],p=[],g=[],w=[];
+  const age=num('currentAge'),coverage=num('coverageAge'),pay=num('payEndAge');
+  if(coverage<=age)h.push('อายุสิ้นสุดความคุ้มครองต้องมากกว่าอายุปัจจุบัน');
+  if(pay<age||pay>=coverage)h.push('อายุสิ้นสุดชำระเบี้ยต้องอยู่ระหว่างอายุปัจจุบันและอายุสิ้นสุดความคุ้มครอง');
+  if(premiumStale)p.push('กรุณา Re-generate Premium Segment ก่อนคำนวณ');
+  premiumRows.forEach((r,i)=>{
+    if(r.end<r.start)p.push(`ช่วงที่ ${i+1}: อายุสิ้นสุดต้องไม่น้อยกว่าอายุเริ่ม`);
+    if(i&&r.start!==premiumRows[i-1].end+1)p.push(`ช่วงที่ ${i+1}: ต้องต่อจากช่วงก่อนหน้า`);
+  });
+  if(premiumRows.length&&premiumRows[0].start!==age)p.push('ช่วงแรกต้องเริ่มที่อายุปัจจุบัน');
+  if(premiumRows.length&&premiumRows.at(-1).end!==pay)p.push('ช่วงสุดท้ายต้องสิ้นสุดที่อายุสิ้นสุดชำระเบี้ย');
+
+  if($('goalEnabled').value==='Y'){
+    const rs=num('retireStartAge'),re=num('retireEndAge'),amt=num('retireAmount');
+    if(rs<55||rs>70)g.push('อายุเริ่มรับเงินเกษียณต้องอยู่ระหว่าง 55–70 ปี');
+    if(re<rs||re>coverage)g.push('อายุสิ้นสุดรับเงินต้องไม่น้อยกว่าอายุเริ่มและไม่เกิน Coverage Age');
+    if(amt<5000)g.push('เงินเกษียณต้องไม่น้อยกว่า 5,000 บาท');
+    if(amt>estimateRetireMax())g.push('เงินเกษียณเกิน Maximum ที่ระบบคำนวณ');
+  }
+
+  withdrawals.forEach((r,i)=>{
+    if(r.startAge<=age)w.push(`แผนถอนที่ ${i+1}: อายุเริ่มถอนต้องมากกว่าอายุปัจจุบัน`);
+    if(r.startAge>coverage)w.push(`แผนถอนที่ ${i+1}: อายุเริ่มถอนเกิน Coverage Age`);
+    if(r.type==='ถอนประจำ'){
+      if(r.endAge<r.startAge||r.endAge>coverage)w.push(`แผนถอนที่ ${i+1}: ช่วงอายุถอนประจำไม่ถูกต้อง`);
+      if(!['รายเดือน','รายปี'].includes(r.frequency))w.push(`แผนถอนที่ ${i+1}: กรุณาเลือกความถี่`);
+    }
+    if(r.amount<=0)w.push(`แผนถอนที่ ${i+1}: จำนวนเงินต้องมากกว่า 0`);
+  });
+
+  showValidation('vHeader',h);showValidation('vPremium',p);showValidation('vGoal',g);showValidation('vWithdraw',w);
+  const r=validateRiders();
+  return !(h.length+p.length+g.length+w.length+r.length);
+}
+
+
+function toggleRiders(){
+  const enabled=$('riderEnabled').value==='Y';
+  $('riderContainer').style.display=enabled?'block':'none';
+  if(!enabled){
+    document.querySelectorAll('[data-rider]').forEach(x=>x.checked=false);
+    selectedRiders=[];
+    syncRiderTable();
+  }
+}
+function syncRiderTable(){
+  selectedRiders=[...document.querySelectorAll('[data-rider]:checked')].map(x=>x.dataset.rider);
+
+  const render=(group,tbody)=>{
+    $(tbody).innerHTML=selectedRiders
+      .filter(code=>riderCatalog[code].group===group)
+      .map(code=>{
+        const r=riderCatalog[code];
+        return `<tr>
+          <td>${r.name}</td>
+          <td>${r.plan}</td>
+          <td>${r.coverAge}</td>
+          <td>${r.ageRange}</td>
+          <td><input type="number" value="${r.premium}" step="100" onchange="riderCatalog['${code}'].premium=Number(this.value||0)"></td>
+        </tr>`;
+      }).join('');
+  };
+  render('PA','riderPA');
+  render('HEALTH','riderHealth');
+  render('CI','riderCI');
+  render('CRITICAL','riderCritical');
+}
+function validateRiders(){
+  const errors=[];
+  if($('riderEnabled').value==='Y'){
+    selectedRiders.forEach(code=>{
+      const r=riderCatalog[code];
+      if(num('currentAge')<Number(r.ageRange.split('-')[0])||num('currentAge')>Number(r.ageRange.split('-')[1])){
+        errors.push(`${r.name}: อายุปัจจุบันไม่อยู่ในช่วงที่สมัครได้`);
+      }
+      if(r.coverAge>num('coverageAge')){
+        errors.push(`${r.name}: อายุสิ้นสุด Rider เกินอายุสิ้นสุดความคุ้มครองของสัญญาหลัก`);
+      }
+      if(r.premium<=0){
+        errors.push(`${r.name}: เบี้ย Rider ต้องมากกว่า 0`);
+      }
+    });
+  }
+  showValidation('vRider',errors);
+  return errors;
+}
+
+function calculate(){
+  if(!validate()){toast('พบข้อมูลที่ต้องแก้ไข');return}
+
+  const current=num('currentAge'),coverage=num('coverageAge'),retireStart=num('retireStartAge'),retireEnd=num('retireEndAge');
+  const retireEnabled=$('goalEnabled').value==='Y',retireFreq=$('retireFrequency').value,retireAmount=num('retireAmount');
+  const retireChargeRate=num('retireSurchargeRate')/100;
+  const returnRate=.04,feeRate=.012,monthlyReturn=Math.pow(1+returnRate,1/12)-1,monthlyFee=feeRate/12;
+
+  let av=0,totalPremium=0,totalRetire=0,totalOther=0,totalCharge=0;
+  let firstRetireAV=null,avFailAge=null,avFailMonth=null;
+  annualProjection=[];monthlyProjection=[];
+  const withdrawalResult={};
+  let monthNo=0;
+
+  for(let age=current;age<=coverage;age++){
+    let yr={age,policyYear:age-current+1,rp:0,topup:0,riderCharge:0,retirement:0,surcharge:0,withdrawal:0,avBefore:av,avAfter:av,death:0};
+    for(let month=1;month<=12;month++){
+      monthNo++;
+      let rp=0,topup=0,retireNet=0,surcharge=0,otherNet=0,riderCharge=0;
+      let before=av;
+
+      if(month===1){
+        const p=premiumAt(age);rp=p.rp;topup=p.topup;
+        av+=rp+topup;totalPremium+=rp+topup;yr.rp+=rp;yr.topup+=topup;
+      }
+      av*=1+monthlyReturn-monthlyFee;
+      if($('riderEnabled').value==='Y'){
+        riderCharge=selectedRiders.reduce((sum,code)=>sum+(riderCatalog[code].premium/12),0);
+        av=Math.max(0,av-riderCharge);yr.riderCharge+=riderCharge;
+      }
+
+      if(retireEnabled&&age>=retireStart&&age<=retireEnd){
+        const request=retireFreq==='monthly'?retireAmount:(month===12?retireAmount:0);
+        if(request>0){
+          if(firstRetireAV===null)firstRetireAV=av;
+          const required=request*(1+retireChargeRate);
+          if(av<required&&avFailAge===null){avFailAge=age;avFailMonth=month}
+          const deducted=Math.min(required,av);
+          retireNet=deducted/(1+retireChargeRate);
+          surcharge=deducted-retireNet;
+          av-=deducted;
+          totalRetire+=retireNet;totalCharge+=surcharge;
+          yr.retirement+=retireNet;yr.surcharge+=surcharge;
+        }
+      }
+
+      withdrawals.forEach((r,index)=>{
+        let should=false;
+        if(r.type==='ถอนครั้งเดียว')should=(age===r.startAge&&month===12);
+        else if(age>=r.startAge&&age<=r.endAge){
+          should=(r.frequency==='รายเดือน')||(r.frequency==='รายปี'&&month===12);
+        }
+        if(should){
+          const beforeW=av;
+          const requested=Math.min(r.amount,beforeW);
+          const fee=requested*(r.feeRate/100);
+          const net=Math.max(0,requested-fee);
+          av-=requested;otherNet+=net;totalOther+=net;totalCharge+=fee;yr.withdrawal+=net;yr.surcharge+=fee;
+          if(!withdrawalResult[index])withdrawalResult[index]={beforeAV:beforeW,net:0,policyYear:age-current+1};
+          withdrawalResult[index].net+=net;
+        }
+      });
+
+      const death=Math.max(av,premiumAt(age).rp*10);
+      monthlyProjection.push({monthNo,age,policyMonth:month,rp,topup,riderCharge,retirement:retireNet,surcharge,withdrawal:otherNet,avBefore:before,avAfter:av,death});
+    }
+    yr.avAfter=av;yr.death=Math.max(av,premiumAt(age).rp*10);
+    annualProjection.push(yr);
+  }
+
+  const avOK=!retireEnabled||avFailAge===null;
+  const anOK=premiumRows.every(r=>r.rp>=0&&r.topup>=0);
+
+  $('avCheck').textContent=avOK?'OK':`Not Enough — อายุ ${avFailAge} เดือน ${avFailMonth}`;
+  $('avBox').className=avOK?'status-box status-ok':'status-box status-fail';
+  $('anCheck').textContent=anOK?'OK':'Not Pass';
+  $('anBox').className=anOK?'status-box status-ok':'status-box status-fail';
+  $('sAV').textContent=avOK?'OK':'Not Enough';
+  $('sAN').textContent=anOK?'OK':'Not Pass';
+  $('sStatus').textContent=avOK&&anOK?'Calculated':'Need Adjustment';
+
+  $('retireAVBefore').value=firstRetireAV===null?'-':fmt(firstRetireAV);
+  $('retireActual').value=retireEnabled?fmt(totalRetire):'-';
+  $('retireSurchargeAmount').value=retireEnabled?fmt(totalCharge):'-';
+  $('retireTotalWithdrawal').value=retireEnabled?fmt(totalRetire+totalCharge):'-';
+
+  $('kAnnual').textContent=fmt((premiumAt(current).rp+premiumAt(current).topup));
+  $('kTotalPremium').textContent=fmt(totalPremium);
+  $('kRetirementPaid').textContent=fmt(totalRetire);
+  $('kOtherWithdrawal').textContent=fmt(totalOther);
+  $('kSurcharge').textContent=fmt(totalCharge);
+  $('kFinalAV').textContent=fmt(av);
+  $('kDeath').textContent=fmt(Math.max(av,premiumAt(coverage).rp*10));
+  $('kVersion').textContent='V'+version;
+
+  renderWithdrawals(withdrawalResult);
+  renderAnnual();
+  renderMonthly();
+  switchTab(0);
+  toast('คำนวณแผนเรียบร้อย');
+}
+
+function renderAnnual(){
+  $('annualProjection').innerHTML=annualProjection.map(x=>`<tr>
+    <td>${x.age}</td><td>${x.policyYear}</td><td>${fmt(x.rp)}</td><td>${fmt(x.topup)}</td><td>${fmt(x.riderCharge||0)}</td>
+    <td>${fmt(x.retirement)}</td><td>${fmt(x.surcharge)}</td><td>${fmt(x.withdrawal)}</td>
+    <td>${fmt(x.avBefore)}</td><td>${fmt(x.avAfter)}</td><td>${fmt(x.death)}</td>
+  </tr>`).join('');
+}
+function renderMonthly(){
+  $('monthlyProjection').innerHTML=monthlyProjection.map(x=>`<tr>
+    <td>${x.monthNo}</td><td>${x.age}</td><td>${x.policyMonth}</td><td>${fmt(x.rp)}</td><td>${fmt(x.topup)}</td><td>${fmt(x.riderCharge||0)}</td>
+    <td>${fmt(x.retirement)}</td><td>${fmt(x.surcharge)}</td><td>${fmt(x.withdrawal)}</td>
+    <td>${fmt(x.avBefore)}</td><td>${fmt(x.avAfter)}</td><td>${fmt(x.death)}</td>
+  </tr>`).join('');
+}
+function switchTab(i){
+  document.querySelectorAll('.tab').forEach((x,j)=>x.classList.toggle('active',i===j));
+  document.querySelectorAll('.panel').forEach((x,j)=>x.classList.toggle('active',i===j));
+}
+function downloadCSV(name,rows){
+  const blob=new Blob(["\ufeff"+rows.map(r=>r.join(',')).join('\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+function exportAnnual(){
+  if(!annualProjection.length){toast('กรุณาคำนวณก่อน');return}
+  downloadCSV('life-planning-annual.csv',[
+    ['Age','Policy Year','RP','Top-up','Rider Charge','Retirement Net','Surcharge','Withdrawal','AV Before','AV After','Death Benefit'],
+    ...annualProjection.map(x=>[x.age,x.policyYear,x.rp,x.topup,x.riderCharge||0,x.retirement,x.surcharge,x.withdrawal,Math.round(x.avBefore),Math.round(x.avAfter),Math.round(x.death)])
+  ]);
+}
+function exportMonthly(){
+  if(!monthlyProjection.length){toast('กรุณาคำนวณก่อน');return}
+  downloadCSV('life-planning-monthly.csv',[
+    ['Month No','Age','Policy Month','RP','Top-up','Rider Charge','Retirement Net','Surcharge','Withdrawal','AV Before','AV After','Death Benefit'],
+    ...monthlyProjection.map(x=>[x.monthNo,x.age,x.policyMonth,x.rp,x.topup,x.riderCharge||0,x.retirement,x.surcharge,x.withdrawal,Math.round(x.avBefore),Math.round(x.avAfter),Math.round(x.death)])
+  ]);
+}
+
+function pdfRow(label,value){
+  return `<tr><td class="pdf-label">${label}</td><td>${value}</td></tr>`;
+}
+
+function buildProposalContent(){
+  $('pdfVersion').textContent='V'+version;
+
+  $('pdfBasicInfo').innerHTML=[
+    pdfRow('Product',$('product').value),
+    pdfRow('Current Age',num('currentAge')+' years'),
+    pdfRow('Coverage Age',num('coverageAge')+' years'),
+    pdfRow('Premium Payment End Age',num('payEndAge')+' years'),
+    pdfRow('Payment Mode',$('paymentMode').value),
+    pdfRow('EM',num('em')+'%')
+  ].join('');
+
+  $('pdfPremiumRows').innerHTML=premiumRows.map(r=>`<tr>
+    <td>${r.start}-${r.end}</td>
+    <td>${fmt(r.rp)}</td>
+    <td>${fmt(r.topup)}</td>
+    <td>${fmt(r.rp+r.topup)}</td>
+  </tr>`).join('');
+
+  $('pdfRetirement').innerHTML=[
+    pdfRow('Enabled',$('goalEnabled').value),
+    pdfRow('Retirement Age Range',num('retireStartAge')+'-'+num('retireEndAge')),
+    pdfRow('Frequency',$('retireFrequency').value==='monthly'?'Monthly':'Yearly'),
+    pdfRow('Required Income',fmt(num('retireAmount'))),
+    pdfRow('Maximum', $('retireMax').value),
+    pdfRow('Policy Year', $('retirePolicyYear').value),
+    pdfRow('AV Check', $('avCheck').textContent),
+    pdfRow('AN Check', $('anCheck').textContent),
+    pdfRow('Retirement Net Total', $('retireActual').value),
+    pdfRow('Surcharge Total', $('retireSurchargeAmount').value),
+    pdfRow('Total Withdrawal', $('retireTotalWithdrawal').value)
+  ].join('');
+
+  $('pdfWithdrawals').innerHTML=withdrawals.length?withdrawals.map(r=>`<tr>
+    <td>${r.type}</td>
+    <td>${r.startAge}</td>
+    <td>${r.endAge}</td>
+    <td>${r.frequency}</td>
+    <td>${fmt(r.amount)}</td>
+  </tr>`).join(''):'<tr><td colspan="5">No withdrawal plan</td></tr>';
+
+  $('pdfRiders').innerHTML=selectedRiders.length?selectedRiders.map(code=>{
+    const r=riderCatalog[code];
+    return `<tr><td>${r.name}</td><td>${r.plan}</td><td>${r.coverAge}</td><td>${fmt(r.premium)}</td></tr>`;
+  }).join(''):'<tr><td colspan="4">No rider selected</td></tr>';
+
+  $('pdfSummary').innerHTML=[
+    pdfRow('Annual Premium - First Year',$('kAnnual').textContent),
+    pdfRow('Total Premium',$('kTotalPremium').textContent),
+    pdfRow('Retirement Net Total',$('kRetirementPaid').textContent),
+    pdfRow('Other Withdrawal Total',$('kOtherWithdrawal').textContent),
+    pdfRow('Total Surcharge',$('kSurcharge').textContent),
+    pdfRow('Final Account Value',$('kFinalAV').textContent),
+    pdfRow('Final Death Benefit',$('kDeath').textContent),
+    pdfRow('Status',$('sStatus').textContent)
+  ].join('');
+}
+
+async function generateProposalPDF(downloadImmediately){
+  if(!annualProjection.length){
+    toast('กรุณากดคำนวณแผนก่อน Generate PDF');
+    return;
+  }
+
+  if(typeof html2canvas==='undefined'||!window.jspdf){
+    toast('ไม่สามารถโหลด PDF library ได้ กำลังเปิด Print Dialog แทน');
+    printProposal();
+    return;
+  }
+
+  const generateBtn=$('generatePdfBtn');
+  const downloadBtn=$('downloadProposalBtn');
+  const originalGenerate=generateBtn.textContent;
+  const originalDownload=downloadBtn.textContent;
+  generateBtn.disabled=true;
+  downloadBtn.disabled=true;
+  generateBtn.textContent='Generating...';
+  downloadBtn.textContent='Generating...';
+
+  try{
+    buildProposalContent();
+    const area=$('proposalPrintArea');
+    area.style.display='block';
+    area.style.position='fixed';
+    area.style.left='-10000px';
+    area.style.top='0';
+
+    const canvas=await html2canvas(area,{
+      scale:1.6,
+      backgroundColor:'#ffffff',
+      useCORS:true,
+      logging:false
+    });
+
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF('p','mm','a4');
+    const pageWidth=210;
+    const pageHeight=297;
+    const margin=10;
+    const imageWidth=pageWidth-(margin*2);
+    const imageHeight=canvas.height*imageWidth/canvas.width;
+    const img=canvas.toDataURL('image/jpeg',0.92);
+
+    let heightLeft=imageHeight;
+    let position=margin;
+    pdf.addImage(img,'JPEG',margin,position,imageWidth,imageHeight);
+    heightLeft-=pageHeight-(margin*2);
+
+    while(heightLeft>0){
+      position=margin-heightLeft;
+      pdf.addPage();
+      pdf.addImage(img,'JPEG',margin,position,imageWidth,imageHeight);
+      heightLeft-=pageHeight-(margin*2);
+    }
+
+    area.style.display='none';
+    area.style.position='';
+    area.style.left='';
+    area.style.top='';
+
+    const filename=`life-planning-proposal-v${version}.pdf`;
+
+    if(downloadImmediately){
+      pdf.save(filename);
+      toast('ดาวน์โหลด Proposal PDF แล้ว');
+    }else{
+      const blob=pdf.output('blob');
+      const url=URL.createObjectURL(blob);
+      window.open(url,'_blank');
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+      toast('Generate PDF สำเร็จ');
+    }
+  }catch(error){
+    console.error(error);
+    toast('Generate PDF ไม่สำเร็จ กรุณาลองใหม่');
+  }finally{
+    generateBtn.disabled=false;
+    downloadBtn.disabled=false;
+    generateBtn.textContent=originalGenerate;
+    downloadBtn.textContent=originalDownload;
+  }
+}
+
+function printProposal(){
+  buildProposalContent();
+  const area=$('proposalPrintArea');
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>Life Planning Proposal</title>
+    <style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    th,td{border:1px solid #ccc;padding:8px;font-size:12px}th{background:#edf6fd}.pdf-label{font-weight:bold;background:#f5f7fb;width:32%}</style>
+    </head><body>${area.innerHTML}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>w.print(),400);
+}
+
+function saveDraft(){
+  const values={};document.querySelectorAll('input,select').forEach(x=>{if(x.id)values[x.id]=x.value});
+  localStorage.setItem('lpFullPrototype',JSON.stringify({premiumRows,withdrawals,values,version,selectedRiders,riderCatalog}));
+  toast('บันทึกร่างแล้ว');
+}
+function loadDraft(){
+  const raw=localStorage.getItem('lpFullPrototype');if(!raw){toast('ไม่พบข้อมูลร่าง');return}
+  const d=JSON.parse(raw);premiumRows=d.premiumRows||premiumRows;withdrawals=d.withdrawals||withdrawals;version=d.version||1;selectedRiders=d.selectedRiders||[];if(d.riderCatalog)Object.assign(riderCatalog,d.riderCatalog);
+  Object.entries(d.values||{}).forEach(([k,v])=>{if($(k))$(k).value=v});
+  premiumStale=false;renderPremium();renderWithdrawals();toggleRetirement();
+  document.querySelectorAll('[data-rider]').forEach(x=>x.checked=selectedRiders.includes(x.dataset.rider));
+  syncRiderTable();toggleRiders();sync();toast('โหลดร่างแล้ว');
+}
+function resetAll(){localStorage.removeItem('lpFullPrototype');location.reload()}
+function newVersion(){version++;$('kVersion').textContent='V'+version;toast('สร้าง Calculation Version V'+version)}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
+
+renderPremium();renderWithdrawals();toggleRetirement();toggleRiders();syncRiderTable();sync();
+</script>
+</body>
+</html>

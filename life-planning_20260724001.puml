@@ -1,0 +1,43 @@
+@startuml
+
+title UNW - Re-check Agent Status before Next
+
+start
+
+:Upload Customer Documents;
+
+:Click Next;
+
+:Call Agent Status API;
+
+if (Black List / Red Level?) then (Yes)
+
+    :Check Product Type;
+
+    if (GIO / Senior / PA?) then (Yes)
+
+        :Existing Flow;
+
+    else (No)
+
+        :Perform e-KYC Process;
+        :Receive e-KYC Result;
+        :Existing Flow;
+
+    endif
+
+else (No)
+
+    :Existing Flow;
+
+endif
+
+:PDPA Process;
+
+:OTP Verification;
+
+:Sign Application;
+
+stop
+
+@enduml

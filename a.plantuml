@@ -1,0 +1,303 @@
+@startuml
+hide footbox
+
+title Life Planning End-to-End Flow
+
+skinparam ParticipantPadding 10
+skinparam BoxPadding 10
+skinparam activity {
+    BackgroundColor White
+    BorderColor DimGray
+    DiamondBackgroundColor LightYellow
+    DiamondBorderColor DimGray
+}
+
+start
+
+:User Login TL Smart;
+
+:เข้าสู่หน้า Landing Page / เมนูเสนอขาย;
+
+:เลือกเมนู Life Planning;
+
+note right
+ชื่อเมนูและตำแหน่ง Entry Point
+รอ UX/UI Confirm
+end note
+
+:แสดงรายการผู้มุ่งหวัง;
+
+if (มีผู้มุ่งหวังเดิม?) then (มี)
+    :ค้นหาและเลือกผู้มุ่งหวัง;
+    :ดึงข้อมูล Prospect;
+    :แสดงข้อมูลแบบ Read Only;
+else (ไม่มี)
+    :เพิ่มผู้มุ่งหวังใหม่;
+    :กรอกข้อมูลผู้มุ่งหวัง;
+    :ตรวจสอบ Duplicate Prospect\nตาม 6 Fields เดิม;
+
+    if (พบข้อมูลซ้ำ?) then (พบ)
+        :แสดงข้อมูล Prospect ที่ซ้ำ;
+        :ให้เลือกข้อมูลเดิมหรือยกเลิก;
+    else (ไม่พบ)
+        :บันทึก Prospect ใหม่;
+    endif
+endif
+
+:สร้าง Life Planning Header;
+
+note right
+POST /ms-sales/v1/life-planning
+
+บันทึก
+- prospect
+- agent
+- product
+- planningType
+- status = DRAFT
+end note
+
+:เลือกแบบประกัน;
+
+note right
+ปัจจุบันรองรับ Product ตาม Scope
+เช่น LV / UWD
+แต่ต้องออกแบบให้รองรับ Product เพิ่มในอนาคต
+end note
+
+:เลือกประเภทการวางแผน;
+
+if (Planning Type?) then (Recommendation)
+    :เข้าสู่ Recommendation Flow เดิม;
+
+    :ระบุทุนประกัน / เป้าหมาย;
+    :เรียก recommendPremiumCalculation();
+
+    if (ไม่สามารถแนะนำเบี้ยได้?) then (ใช่)
+        :แสดง Error;
+        stop
+    endif
+
+    :แสดงเบี้ยที่ระบบแนะนำ;
+
+else (Self Planning)
+
+    partition "Step 1: Premium Planning" {
+        :ระบุอายุสิ้นสุดความคุ้มครอง;
+        :ระบุจำนวนปีชำระเบี้ย;
+        :ระบบคำนวณอายุสิ้นสุดชำระเบี้ย;
+
+        :เลือก Payment Mode;
+
+        note right
+        - รายปี
+        - ราย 6 เดือน
+        - ราย 3 เดือน
+        - รายเดือน
+        end note
+
+        :ระบุ RP Premium;
+        :ระบุ Top-up Premium;
+
+        if (Top-up มีค่าหรือไม่?) then (มี)
+            if (Top-up < 1,000?) then (ใช่)
+                :แสดง Error\nTop-up ขั้นต่ำ 1,000 บาท;
+                stop
+            endif
+
+            if (Top-up > RP?) then (ใช่)
+                :แสดง Error\nTop-up ต้องไม่เกิน RP;
+                stop
+            endif
+        endif
+
+        :เพิ่ม/ลด Premium ตามช่วงอายุได้;
+        :Validate Age Range\nเรียงต่อเนื่อง ไม่ซ้อน ไม่ขาดช่วง;
+        :บันทึก Premium Planning;
+    }
+
+    partition "Step 2: Sum Assured Planning" {
+        :เรียก sumAssuredCalculation();
+
+        :คำนวณ Min SA / Max SA\nตาม Product, Gender, Entry Age,\nAttained Age และ RP ของแต่ละช่วง;
+
+        if (Calculated Max SA < Min SA?) then (ใช่)
+            :กำหนด Effective Max SA = Min SA;
+        endif
+
+        :แสดงช่วง Sum Assured ที่เลือกได้;
+
+        :ผู้ใช้ระบุ Sum Assured;
+
+        if (SA อยู่ใน Min-Max?) then (ไม่อยู่)
+            :แสดง Error / Popup;
+            :ให้แก้ไขจำนวนเงินเอาประกันภัย;
+        else (อยู่ในช่วง)
+            :Validate SA ครอบคลุมทุกช่วง RP;
+        endif
+
+        if (มีช่วงอายุที่ SA เดิมไม่ครอบคลุม?) then (มี)
+            :ระบบเพิ่ม Age Row ที่ต้องระบุใหม่;
+            :ผู้ใช้ระบุ SA ของ Row เพิ่มเติม;
+        endif
+
+        :บันทึก Sum Assured;
+    }
+
+    partition "Step 3: Expected Return" {
+        :ระบุ Expected Rate of Return;
+
+        if (Return Rate < 1% หรือ > 4%?) then (ใช่)
+            :แสดง Error;
+            stop
+        endif
+
+        :สามารถเพิ่ม Return Rate ตามช่วงอายุ;
+
+        note right
+        ช่วงอายุสูงสุด =
+        Coverage Age - 1
+        end note
+
+        :Validate Age Range;
+        :บันทึก Return Rate;
+    }
+
+    partition "Step 4: Withdrawal Planning" {
+        if (ต้องการถอนเงิน?) then (ใช่)
+            :ระบุอายุเริ่มถอน;
+            :ระบุอายุสิ้นสุดถอน;
+            :ระบุจำนวนเงินถอน;
+            :ระบุความถี่;
+
+            :Validate Withdrawal Age Range;
+            :บันทึก Withdrawal;
+        else (ไม่ถอน)
+        endif
+    }
+
+    partition "Step 5: Retirement Planning" {
+        if (ต้องการบำนาญ?) then (ใช่)
+            :ระบุอายุเริ่มรับบำนาญ;
+            :ระบุอายุสิ้นสุดรับบำนาญ;
+            :ระบุจำนวนเงินบำนาญ;
+            :ระบุความถี่;
+
+            :Validate Retirement Age Range;
+            :บันทึก Retirement;
+        else (ไม่มีบำนาญ)
+        endif
+    }
+
+    partition "Step 6: Rider" {
+        if (ต้องการ Rider?) then (ใช่)
+            :เลือกรายการ Rider;
+            :Validate Rider Eligibility;
+            :บันทึก Rider;
+        else (ไม่เลือก)
+        endif
+    }
+
+endif
+
+partition "Projection Calculation" {
+    :ตรวจสอบข้อมูลที่ใช้ Projection;
+
+    note right
+    Required Inputs
+    - Premium / Top-up
+    - Sum Assured
+    - Expected Return
+    - Withdrawal
+    - Retirement
+    - Rider
+    end note
+
+    if (ข้อมูล Projection ครบ?) then (ไม่ครบ)
+        :สถานะ NOT_READY;
+        :แจ้งให้ระบุข้อมูลให้ครบ;
+    else (ครบ)
+        :เรียก retirementIncomeCalculation();
+        :เรียก summaryCalculation();
+        :เรียก getTableYearForDisplay();
+
+        :Project Account Value รายปี;
+
+        repeat
+            :รับ Premium / Top-up;
+            :คำนวณผลตอบแทน;
+            :หัก Charges / COI / Rider;
+
+            if (อยู่ในช่วงถอนเงิน?) then (ใช่)
+                :หัก Withdrawal;
+            endif
+
+            if (อยู่ในช่วงรับบำนาญ?) then (ใช่)
+                :หัก Retirement Income;
+            endif
+
+            :คำนวณ Ending Account Value;
+        repeat while (ยังไม่สิ้นสุด Projection?) is (ใช่)
+
+        if (เงินไม่พอสำหรับ Withdrawal?) then (ใช่)
+            :Blocking Error\nต้องลดจำนวนเงินถอนหรือแก้ช่วงอายุ;
+        elseif (เงินไม่พอสำหรับ Retirement?) then (ใช่)
+            :Blocking Error\nต้องลดบำนาญหรือแก้ช่วงอายุ;
+        elseif (Projected End Age < Coverage Age?) then (ใช่)
+            :Warning\nกรมธรรม์คาดว่าจะสิ้นสุดก่อน\nอายุความคุ้มครองที่เลือก;
+        else (ไม่ใช่)
+            :Projection Status = VALID;
+        endif
+    endif
+}
+
+partition "Step 7: Summary" {
+    :GET /ms-sales/v1/life-planning/{lifePlanningId};
+
+    :แสดงสรุป Life Planning;
+
+    note right
+    Summary
+    - Prospect
+    - Product
+    - Premium / Top-up
+    - Sum Assured
+    - Return Rate
+    - Withdrawal
+    - Retirement
+    - Rider
+    - Policy End Age
+    - Warning / Status
+    - ตาราง ง.
+    end note
+}
+
+if (มี Blocking Error?) then (มี)
+    :ย้อนกลับไปแก้ไข Step ที่เกี่ยวข้อง;
+else (ไม่มี)
+    if (User ต้องการแก้ไขข้อมูล?) then (แก้ไข)
+        :แสดง Confirmation Popup;
+
+        note right
+        การแก้ไขข้อมูลอาจทำให้
+        Projection และข้อมูล Step ถัดไป
+        ต้องคำนวณใหม่
+        end note
+
+        :ตั้ง Projection Status = STALE;
+        :ย้อนกลับไปยัง Step ที่เลือก;
+    else (ยืนยัน)
+        :ยืนยัน Life Planning;
+        :สร้าง / เชื่อมต่อ Quotation;
+
+        note right
+        เมื่อ Life Planning ถูกอ้างอิงโดย Quotation
+        อาจไม่อนุญาตให้แก้ไข
+        ตาม Business Rule เดิม
+        end note
+    endif
+endif
+
+stop
+
+@enduml
