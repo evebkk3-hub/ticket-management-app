@@ -113,6 +113,14 @@ The GUI includes:
 
 ## Run Web Application
 
+To start directly for Life Planning:
+
+```powershell
+.\run-life-planning.cmd
+```
+
+Open `http://localhost:8080/life-planning`. This page does not require login.
+
 ```powershell
 .\run-ticket-web.cmd
 ```
@@ -132,6 +140,7 @@ Password: 12345678
 
 Web pages:
 
+- `http://localhost:8080/life-planning` - Life Planning Self Design application
 - `http://localhost:8080/` - Create Ticket
 - `http://localhost:8080/apl` - APL/RYP Payment Console
 - `http://localhost:8080/roadmap` - Epic roadmap

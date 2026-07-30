@@ -10,6 +10,7 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/out ./out
 COPY --from=build /app/lib ./lib
+COPY LiftPlanV2.htm ./LiftPlanV2.htm
 
 ENV PORT=8080
 ENV SQLITE_DB_FILE=/app/data/tickets.db

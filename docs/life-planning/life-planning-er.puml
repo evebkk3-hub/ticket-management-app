@@ -1,0 +1,107 @@
+@startuml
+title Life Planning - Logical Data Model
+hide methods
+skinparam backgroundColor #F8FAFC
+skinparam class {
+  BackgroundColor White
+  BorderColor #64748B
+  ArrowColor #64748B
+}
+entity life_plannings {
+  * id : uuid <<PK>>
+  --
+  prospect_id : uuid <<FK>>
+  product_code : varchar(20)
+  status : varchar(30)
+  current_version_number : integer
+  quotation_id : uuid?
+  created_at : timestamptz
+  updated_at : timestamptz
+}
+entity life_planning_versions {
+  * id : uuid <<PK>>
+  --
+  life_planning_id : uuid <<FK>>
+  version_number : integer
+  current_step : integer
+  calculation_status : varchar(30)
+  input_snapshot : json
+  created_at : timestamptz
+}
+entity life_planning_premium_segments {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  start_age : integer
+  end_age : integer
+  regular_premium : decimal(18,2)
+  top_up_premium : decimal(18,2)
+}
+entity life_planning_retirement_plans {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  start_age : integer
+  end_age : integer
+  frequency : varchar(20)
+  requested_amount : decimal(18,2)
+}
+entity life_planning_withdrawals {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  withdrawal_type : varchar(20)
+  start_age : integer
+  end_age : integer?
+  frequency : varchar(20)
+  requested_amount : decimal(18,2)
+}
+entity life_planning_riders {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  rider_code : varchar(30)
+  benefit_amount : decimal(18,2)
+  annual_premium : decimal(18,2)
+}
+entity life_planning_calculation_results {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  calculation_version : integer
+  total_premium : decimal(18,2)
+  retirement_paid : decimal(18,2)
+  final_account_value : decimal(18,2)
+  death_benefit : decimal(18,2)
+  status : varchar(30)
+}
+entity life_planning_projections {
+  * id : uuid <<PK>>
+  calculation_result_id : uuid <<FK>>
+  policy_year : integer
+  policy_month : integer
+  account_value_before : decimal(18,2)
+  account_value_after : decimal(18,2)
+  death_benefit : decimal(18,2)
+}
+entity life_planning_documents {
+  * id : uuid <<PK>>
+  life_planning_version_id : uuid <<FK>>
+  document_type : varchar(30)
+  storage_key : varchar(512)
+  checksum : varchar(128)
+  created_at : timestamptz
+}
+entity life_planning_audit_events {
+  * id : uuid <<PK>>
+  life_planning_id : uuid <<FK>>
+  event_code : varchar(50)
+  actor_id : varchar(50)
+  event_data : json
+  occurred_at : timestamptz
+}
+life_plannings ||--o{ life_planning_versions
+life_planning_versions ||--o{ life_planning_premium_segments
+life_planning_versions ||--o| life_planning_retirement_plans
+life_planning_versions ||--o{ life_planning_withdrawals
+life_planning_versions ||--o{ life_planning_riders
+life_planning_versions ||--o{ life_planning_calculation_results
+life_planning_calculation_results ||--o{ life_planning_projections
+life_planning_versions ||--o{ life_planning_documents
+life_plannings ||--o{ life_planning_audit_events
+@enduml

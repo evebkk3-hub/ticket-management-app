@@ -263,6 +263,74 @@ final class TicketDatabase {
                         created_at text not null
                     )
                     """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_config_versions (
+                        config_version text primary key,
+                        source_reference text not null,
+                        effective_from text not null,
+                        effective_to text,
+                        status text not null,
+                        created_at text not null default (datetime('now'))
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_product_config (
+                        config_version text not null,
+                        product_code text not null,
+                        product_name text not null,
+                        minimum_rp real not null,
+                        minimum_return_rate real not null,
+                        maximum_return_rate real not null,
+                        admin_fee_rate real not null,
+                        minimum_av_after_withdrawal real not null,
+                        annuity_plan_code text not null,
+                        primary key (config_version, product_code)
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_sa_rules (
+                        config_version text not null,
+                        product_code text not null,
+                        gender text not null,
+                        age_from integer not null,
+                        age_to integer not null,
+                        rp_multiplier real not null,
+                        occupation_cap_multiplier real,
+                        primary key (config_version, product_code, gender, age_from)
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_premium_charge_rules (
+                        config_version text not null,
+                        product_code text not null,
+                        policy_year integer not null,
+                        rp_charge_rate real not null,
+                        surrender_charge_rate real not null,
+                        topup_charge_rate real not null,
+                        primary key (config_version, product_code, policy_year)
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_coi_rates (
+                        config_version text not null,
+                        gender text not null,
+                        attained_age integer not null,
+                        rate_per_thousand real not null,
+                        source_table text not null,
+                        primary key (config_version, gender, attained_age)
+                    )
+                    """);
+            statement.executeUpdate("""
+                    create table if not exists life_planning_annuity_factors (
+                        config_version text not null,
+                        plan_code text not null,
+                        gender text not null,
+                        annuity_start_age integer not null,
+                        yearly_factor real not null,
+                        monthly_factor real not null,
+                        primary key (config_version, plan_code, gender, annuity_start_age)
+                    )
+                    """);
             ensureColumn(connection, "pantip_topics", "content", "text");
             ensureColumn(connection, "apl_policies", "product_type", "text not null default 'OL'");
             ensureColumn(connection, "apl_policies", "due_date", "text not null default '2026-07-05'");
@@ -290,9 +358,143 @@ final class TicketDatabase {
             seedPaymentMethodProductRules(connection);
             seedDueDateStatusRules(connection);
             seedProductPremiumComponentRules(connection);
+            seedLifePlanningV57Config(connection);
             seedAplPolicies(connection);
         } catch (SQLException exception) {
             throw new IllegalStateException("Unable to initialize SQLite database.", exception);
+        }
+    }
+
+    private void seedLifePlanningV57Config(Connection connection) throws SQLException {
+        final String version = "LV-V5.7-20260429";
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_config_versions
+                    (config_version, source_reference, effective_from, effective_to, status)
+                values (?, ?, ?, null, 'ACTIVE')
+                on conflict(config_version) do update set
+                    source_reference=excluded.source_reference,
+                    effective_from=excluded.effective_from,
+                    status=excluded.status
+                """)) {
+            statement.setString(1, version);
+            statement.setString(2, "Life Verse 1.0 Initial Life Planning Tool PD v5.7 20260429");
+            statement.setString(3, "2026-04-29");
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_product_config
+                    (config_version, product_code, product_name, minimum_rp,
+                     minimum_return_rate, maximum_return_rate, admin_fee_rate,
+                     minimum_av_after_withdrawal, annuity_plan_code)
+                values (?, 'UWB', 'Life Verse Wealth Fit 99/99', 36000, 0.01, 0.04, 0, 8000, 'AN1.75')
+                on conflict(config_version, product_code) do update set
+                    product_name=excluded.product_name,
+                    minimum_rp=excluded.minimum_rp,
+                    minimum_return_rate=excluded.minimum_return_rate,
+                    maximum_return_rate=excluded.maximum_return_rate,
+                    admin_fee_rate=excluded.admin_fee_rate,
+                    minimum_av_after_withdrawal=excluded.minimum_av_after_withdrawal,
+                    annuity_plan_code=excluded.annuity_plan_code
+                """)) {
+            statement.setString(1, version);
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_sa_rules
+                    (config_version, product_code, gender, age_from, age_to,
+                     rp_multiplier, occupation_cap_multiplier)
+                values (?, 'UWB', ?, ?, ?, ?, ?)
+                on conflict(config_version, product_code, gender, age_from) do update set
+                    age_to=excluded.age_to,
+                    rp_multiplier=excluded.rp_multiplier,
+                    occupation_cap_multiplier=excluded.occupation_cap_multiplier
+                """)) {
+            Object[][] rows = {
+                    {"M", 0, 49, 8.0, 45.0}, {"M", 50, 99, 5.0, 45.0},
+                    {"F", 0, 49, 8.0, 60.0}, {"F", 50, 99, 5.0, 60.0}
+            };
+            for (Object[] row : rows) {
+                statement.setString(1, version);
+                statement.setString(2, (String) row[0]);
+                statement.setInt(3, (Integer) row[1]);
+                statement.setInt(4, (Integer) row[2]);
+                statement.setDouble(5, (Double) row[3]);
+                statement.setDouble(6, (Double) row[4]);
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_premium_charge_rules
+                    (config_version, product_code, policy_year, rp_charge_rate,
+                     surrender_charge_rate, topup_charge_rate)
+                values (?, 'UWB', ?, ?, ?, 0)
+                on conflict(config_version, product_code, policy_year) do update set
+                    rp_charge_rate=excluded.rp_charge_rate,
+                    surrender_charge_rate=excluded.surrender_charge_rate,
+                    topup_charge_rate=excluded.topup_charge_rate
+                """)) {
+            double[][] rows = {{1, .50, .70}, {2, .35, .50}, {3, .25, .30},
+                    {4, .20, .10}, {5, .10, 0}, {6, 0, 0}};
+            for (double[] row : rows) {
+                statement.setString(1, version);
+                statement.setInt(2, (int) row[0]);
+                statement.setDouble(3, row[1]);
+                statement.setDouble(4, row[2]);
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        }
+        seedCoiRate(connection, version, "M", 30, 1.69);
+        seedCoiRate(connection, version, "F", 30, .58);
+        seedCoiRate(connection, version, "M", 50, 5.32);
+        seedCoiRate(connection, version, "F", 50, 2.22);
+        seedCoiRate(connection, version, "M", 70, 33.04);
+        seedCoiRate(connection, version, "F", 70, 20.82);
+        seedCoiRate(connection, version, "M", 99, 1000);
+        seedCoiRate(connection, version, "F", 99, 1000);
+        seedAnnuityFactor(connection, version, "M", 55, .0397, .003335);
+        seedAnnuityFactor(connection, version, "M", 60, .0441, .003704);
+        seedAnnuityFactor(connection, version, "M", 65, .0495, .004158);
+        seedAnnuityFactor(connection, version, "M", 70, .0562, .004721);
+        seedAnnuityFactor(connection, version, "F", 55, .0361, .003032);
+    }
+
+    private void seedCoiRate(Connection connection, String version, String gender,
+                             int age, double rate) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_coi_rates
+                    (config_version, gender, attained_age, rate_per_thousand, source_table)
+                values (?, ?, ?, ?, 'COI')
+                on conflict(config_version, gender, attained_age) do update set
+                    rate_per_thousand=excluded.rate_per_thousand,
+                    source_table=excluded.source_table
+                """)) {
+            statement.setString(1, version);
+            statement.setString(2, gender);
+            statement.setInt(3, age);
+            statement.setDouble(4, rate);
+            statement.executeUpdate();
+        }
+    }
+
+    private void seedAnnuityFactor(Connection connection, String version, String gender,
+                                   int age, double yearly, double monthly) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("""
+                insert into life_planning_annuity_factors
+                    (config_version, plan_code, gender, annuity_start_age,
+                     yearly_factor, monthly_factor)
+                values (?, 'AN1.75', ?, ?, ?, ?)
+                on conflict(config_version, plan_code, gender, annuity_start_age) do update set
+                    yearly_factor=excluded.yearly_factor,
+                    monthly_factor=excluded.monthly_factor
+                """)) {
+            statement.setString(1, version);
+            statement.setString(2, gender);
+            statement.setInt(3, age);
+            statement.setDouble(4, yearly);
+            statement.setDouble(5, monthly);
+            statement.executeUpdate();
         }
     }
 

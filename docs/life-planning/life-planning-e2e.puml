@@ -1,0 +1,61 @@
+@startuml
+title Life Planning - End-to-End Flow (iPad / Java)
+skinparam backgroundColor #F8FAFC
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam sequenceMessageAlign center
+actor Agent
+participant "React Native\niPad 11-inch" as Mobile
+participant "API Gateway" as Gateway
+participant "Java Life Planning API" as API
+participant "Product / Rider Config" as Config
+participant "Calculation Engine" as Calc
+database "PostgreSQL" as DB
+participant "Document Service" as Doc
+participant "Quotation Service" as Quote
+
+Agent -> Mobile: Open Life Planning
+Mobile -> Gateway: GET /v1/life-plannings/{id}
+Gateway -> API: Validate JWT, agent permission
+API -> DB: Load plan + latest version + child tables
+DB --> API: Aggregate data
+API --> Mobile: Plan detail and permissions
+
+Agent -> Mobile: Edit Step 0-6 data
+Mobile -> API: PUT /v1/life-plannings/{id}/steps/{step}
+API -> Config: Validate product/rider/config baseline
+Config --> API: Configuration and limits
+API -> DB: Begin transaction
+API -> DB: Lock latest version
+API -> DB: Save step data and audit event
+API -> DB: Commit
+API --> Mobile: Saved version + ETag
+
+Agent -> Mobile: Calculate plan
+Mobile -> API: POST /v1/life-plannings/{id}/calculations
+API -> DB: Load immutable calculation snapshot
+API -> Config: Get rate, fee, rider rules
+API -> Calc: Calculate monthly projection
+Calc --> API: AV, benefits, premium, validation
+API -> DB: Save calculation result + projections
+API --> Mobile: Calculation summary and warnings
+
+alt Validation passed
+  Agent -> Mobile: Generate proposal
+  Mobile -> API: POST /v1/life-plannings/{id}/documents
+  API -> Doc: Generate PDF from calculation version
+  Doc --> API: documentId, checksum, storageKey
+  API -> DB: Save document metadata
+  API --> Mobile: Secure document URL
+
+  Agent -> Mobile: Submit to Quotation
+  Mobile -> API: POST /v1/life-plannings/{id}/submit
+  API -> Quote: Create quotation from locked snapshot
+  Quote --> API: quotationId / error
+  API -> DB: Update submission status and reference
+  API --> Mobile: Submitted
+else Validation failed
+  API --> Mobile: Field-level errors
+  Mobile --> Agent: Highlight fields and return to task
+end
+@enduml

@@ -48,6 +48,23 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
 .tab{background:#fff;color:#53677b;border-radius:0;padding:11px 16px;border-bottom:3px solid transparent}
 .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
 .panel{display:none}.panel.active{display:block}
+.table-ng{min-width:1680px}
+.table-ng thead tr:first-child th{background:#d9ead3;color:#274e13;text-align:center;border:1px solid #9bbb8b}
+.table-ng thead tr:nth-child(2) th{background:#edf6e9;color:#365b2d;text-align:center;border:1px solid #b7cfad}
+.table-ng td{text-align:right;white-space:nowrap}
+.table-ng td:first-child,.table-ng td:nth-child(2){text-align:center}
+.table-ng-note{margin:0 0 12px;padding:10px 12px;background:#f3f9f0;border:1px solid #b7cfad;border-radius:8px;color:#365b2d;font-size:12px}
+.table-ng-document{background:#fff;border:1px solid #aab4bf;padding:20px;margin-bottom:18px;color:#111}
+.table-ng-doc-head{display:grid;grid-template-columns:260px 1fr 220px;gap:12px;align-items:start;margin-bottom:16px}
+.table-ng-brand{color:#0875b9;font-weight:700;line-height:1.45}.table-ng-brand strong{font-size:17px}
+.table-ng-doc-title{text-align:center;line-height:1.55}.table-ng-doc-title strong{font-size:16px}
+.table-ng-request{border:1px solid #555;padding:7px;text-align:center;font-size:12px}
+.table-ng-section{margin-top:18px}.table-ng-section h3{font-size:13px;margin:0 0 9px}.table-ng-section p{font-size:12px;margin:4px 0}
+.table-ng-form{width:100%;min-width:0;border-collapse:collapse;margin-top:8px}.table-ng-form th,.table-ng-form td{border:1px solid #333;padding:6px 8px;text-align:center;font-size:11px}
+.table-ng-form th{background:#fff;color:#111;font-weight:400}.table-ng-form td{font-weight:600}
+.table-ng-warning{border:1px solid #555;padding:8px;margin:18px auto 0;max-width:760px;text-align:center;font-size:11px;font-weight:700}
+.table-ng-signature{display:grid;grid-template-columns:1.2fr 1.4fr 1.2fr .8fr .8fr;border:1px solid #555;margin-top:14px}.table-ng-signature span{padding:8px;font-size:11px;font-weight:700}
+@media(max-width:760px){.table-ng-doc-head{grid-template-columns:1fr}.table-ng-doc-title{text-align:left}.table-ng-document{padding:12px}}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .kpi{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fbfdff}
 .kpi small{display:block;color:var(--muted);margin-bottom:6px}.kpi strong{font-size:17px}
@@ -63,8 +80,30 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
 .pdf-label{font-weight:700;background:#f5f7fb;width:32%}
 .toast{display:none;position:fixed;right:18px;bottom:18px;background:#1f2937;color:#fff;padding:11px 15px;border-radius:8px;z-index:20}
 .toast.show{display:block}
+.wizard{background:#fff;border:1px solid #d9e2ec;border-radius:12px;padding:14px 16px;margin-bottom:16px;box-shadow:0 4px 14px #1f5f9f12}
+.wizard-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+.wizard-head strong{font-size:15px;color:var(--primary-dark)}
+.wizard-head span{font-size:12px;color:var(--muted)}
+.wizard-track{height:8px;background:#e7edf4;border-radius:99px;overflow:hidden}
+.wizard-progress{height:100%;width:14.285%;background:linear-gradient(90deg,var(--primary),#27a36a);border-radius:99px;transition:width .25s ease}
+.wizard-steps{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.wizard-step{padding:7px 5px;border:1px solid #d9e2ec;background:#fff;color:#66788a;font-size:11px;font-weight:700;border-radius:7px}
+.wizard-step.active{background:#eaf4fc;border-color:var(--primary);color:var(--primary-dark)}
+.wizard-step.done{background:#effaf4;border-color:#9fd8b8;color:var(--ok)}
+.stack>.card{display:none}
+.stack>.card.wizard-active{display:block}
+.wizard-nav{display:flex;justify-content:space-between;gap:10px;position:sticky;bottom:8px;background:#fffffff2;border:1px solid #d9e2ec;border-radius:12px;padding:10px;box-shadow:0 8px 24px #1f293722;z-index:10}
+.wizard-nav .right{display:flex;gap:8px;margin-left:auto}
+.wizard-nav button[disabled]{opacity:.4;cursor:not-allowed}
+.layout{grid-template-columns:minmax(0,1fr)}
+.summary{position:static;display:none}
+.summary.wizard-summary-active{display:block}
+.notice.ui-reference{display:none}
+.card-body{padding:22px}
+.card{border:1px solid #c9d8e8;border-radius:12px;box-shadow:0 5px 18px #1f5f9f10}
+.card-header{border-radius:11px 11px 0 0}
 @media(max-width:1050px){.layout{grid-template-columns:1fr}.summary{position:static}}
-@media(max-width:760px){main{padding:10px}.grid,.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){main{padding:10px}.grid,.kpis{grid-template-columns:repeat(2,1fr)}.wizard-steps{grid-template-columns:repeat(4,1fr)}.wizard-step{font-size:10px}.toolbar{justify-content:flex-end}.toolbar>.actions:first-child{display:none}}
 @media(max-width:480px){.grid,.kpis{grid-template-columns:1fr}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -72,22 +111,23 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
 </head>
 <body>
 <header>
-  <h1>Life Planning - Self Design Tool Prototype</h1>
-  <p>หน้าจอ ลำดับข้อมูล สี และรูปแบบ Input/Calculated Field ยึดตามไฟล์ Life Verse_Life Planning_Self Design Tool v1.5</p>
+  <h1>วางแผนชีวิต</h1>
+  <p>กรอกข้อมูลทีละขั้น แล้วระบบจะสรุปแผนให้โดยอัตโนมัติ</p>
 </header>
 
 <main>
-<div class="notice" style="margin-bottom:14px"><strong>UI Reference:</strong> Life Verse_Life Planning_Self Design Tool_v1.5_16072026_Unlock for Dev 1.xlsm — ช่องสีเหลืองคือข้อมูลที่ผู้ใช้กรอก และช่องสีเทาคือค่าที่ระบบคำนวณหรือดึงจาก Configuration</div>
+<div class="notice ui-reference" style="margin-bottom:14px"><strong>UI Reference:</strong> Life Verse_Life Planning_Self Design Tool_v1.5_16072026_Unlock for Dev 1.xlsm — ช่องสีเหลืองคือข้อมูลที่ผู้ใช้กรอก และช่องสีเทาคือค่าที่ระบบคำนวณหรือดึงจาก Configuration</div>
 <div class="toolbar">
   <div class="actions">
-    <button class="secondary" onclick="toast('ย้อนกลับ')">ย้อนกลับ</button>
-    <button class="primary" onclick="calculate()">คำนวณแผน</button>
+    <button class="ghost" onclick="loadDraft()">เปิดแผนที่บันทึกไว้</button>
+    <button class="danger" onclick="resetAll()">เริ่มแผนใหม่</button>
   </div>
-  <div class="actions">
-    <button class="ghost" onclick="saveDraft()">บันทึกร่าง</button>
-    <button class="ghost" onclick="loadDraft()">โหลดร่าง</button>
-    <button class="danger" onclick="resetAll()">ล้างค่า</button>
-  </div>
+</div>
+
+<div class="wizard" aria-label="ขั้นตอนการวางแผนชีวิต">
+  <div class="wizard-head"><strong id="wizardTitle">ข้อมูลกรมธรรม์</strong><span id="wizardCounter">ขั้นตอน 1 จาก 7</span></div>
+  <div class="wizard-track"><div class="wizard-progress" id="wizardProgress"></div></div>
+  <div class="wizard-steps" id="wizardSteps"></div>
 </div>
 
 <div class="layout">
@@ -280,6 +320,7 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
     <button class="tab active" onclick="switchTab(0)">สรุป</button>
     <button class="tab" onclick="switchTab(1)">Projection รายปี</button>
     <button class="tab" onclick="switchTab(2)">Projection รายเดือน</button>
+    <button class="tab" onclick="switchTab(3)">ตาราง ง.</button>
   </div>
 
   <div class="card-body panel active">
@@ -314,6 +355,65 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
     </div>
     <button class="secondary" style="margin-top:10px" onclick="exportMonthly()">Export CSV รายเดือน</button>
   </div>
+
+  <div class="card-body panel">
+    <div class="table-ng-document">
+      <div class="table-ng-doc-head">
+        <div class="table-ng-brand"><strong>ไทยประกันชีวิต</strong><br>บริษัท ไทยประกันชีวิต จำกัด (มหาชน)<br><small>123 ถนนรัชดาภิเษก เขตดินแดง กรุงเทพฯ 10400<br>www.thailife.com</small></div>
+        <div class="table-ng-doc-title"><strong>บริษัท ไทยประกันชีวิต จำกัด (มหาชน)</strong><br><strong>รายละเอียดตัวอย่างการคำนวณผลประโยชน์ตามกรมธรรม์ประกันชีวิต ตาม (ง)</strong><br>ชื่อแบบประกันภัย : <span id="ngProductName">ไลฟ์เวิร์ส เวลท์ ฟิต 99/99</span></div>
+        <div class="table-ng-request">ใช้ในกรณีผู้เอาประกันภัยร้องขอเท่านั้น</div>
+      </div>
+
+      <section class="table-ng-section"><h3>1. การชำระเบี้ยประกันภัย (Premium Payment)</h3>
+        <p id="ngPremiumCondition"></p>
+        <table class="table-ng-form"><thead><tr><th>อายุผู้เอาประกันภัย (ปี) ตั้งแต่</th><th>เบี้ยประกันภัยหลัก (บาท)</th><th>เบี้ยประกันภัยส่วนออมเพิ่มเติม (บาท)</th><th>รวมเบี้ยประกันภัย (บาท)</th></tr></thead><tbody id="ngPremiumRows"></tbody></table>
+      </section>
+
+      <section class="table-ng-section"><h3>2. จำนวนเงินเอาประกันภัย (Sum Assured)</h3>
+        <table class="table-ng-form"><thead><tr><th>อายุผู้เอาประกันภัย (ปี) ตั้งแต่</th><th>จำนวนเงินเอาประกันภัย (บาท)</th></tr></thead><tbody id="ngSaRows"></tbody></table>
+      </section>
+
+      <section class="table-ng-section"><h3>3. อัตราผลตอบแทนที่คาดหวัง (Expected Interest Rate)</h3>
+        <table class="table-ng-form"><thead><tr><th>อายุผู้เอาประกันภัย (ปี) ตั้งแต่</th><th>ผลตอบแทนที่คาดหวัง (%)</th></tr></thead><tbody id="ngRateRows"></tbody></table>
+        <p><strong>หมายเหตุ</strong> อัตราผลตอบแทนที่คาดหวังสูงสุดไม่เกิน 4% และอัตราผลตอบแทนเฉลี่ยพอร์ตลงทุนของเบี้ยหลักและส่วนออมเพิ่มเติมต้องไม่ต่ำกว่า 1% ต่อปี</p>
+      </section>
+
+      <section class="table-ng-section"><h3>4. การถอนเงิน (Withdrawal)</h3>
+        <p><strong>4.1 การถอนเงินจากมูลค่าบัญชีกรมธรรม์ประกันภัย (ถอนเงินสด)</strong></p>
+        <table class="table-ng-form"><thead><tr><th>ประมาณการถอน (บาท)</th><th>ถอนเงินครั้งละ (บาท)</th><th>อายุที่ถอน (ปี)</th><th>ปีกรมธรรม์ (ปี)</th><th>ถอนทุก ๆ (ปี)</th></tr></thead><tbody id="ngWithdrawalRows"></tbody></table>
+        <p><strong>4.2 การถอนเงินเพื่อซื้อกรมธรรม์ประกันชีวิตแบบบำนาญ</strong></p>
+        <table class="table-ng-form"><thead><tr><th>ถอนเงินครั้งละ (บาท)</th><th>อายุที่ถอน (ปี)</th><th>ปีกรมธรรม์ (ปี)</th></tr></thead><tbody id="ngAnnuityWithdrawal"></tbody></table>
+        <p><strong>ผลประโยชน์รายปีจากกรมธรรม์แบบบำนาญ</strong></p>
+        <table class="table-ng-form"><thead><tr><th>ปีกรมธรรม์ (ปี) ตั้งแต่</th><th>อายุผู้เอาประกันภัย (ปี) ตั้งแต่</th><th>ผลประโยชน์รายปี (บาท)</th></tr></thead><tbody id="ngAnnuityIncome"></tbody></table>
+      </section>
+
+      <section class="table-ng-section"><h3>5. สัญญาเพิ่มเติม</h3>
+        <table class="table-ng-form"><thead><tr><th>สัญญาเพิ่มเติม</th><th>จำนวนเงินเอาประกันภัย</th><th>เบี้ยสัญญาเพิ่มเติม*</th><th>คุ้มครองถึงอายุ (ปี)</th></tr></thead><tbody id="ngRiderRows"></tbody></table>
+        <p><strong>หมายเหตุ</strong> เบี้ยประกันภัยสัญญาเพิ่มเติมที่แสดงเป็นเบี้ยประกันภัยสำหรับปีแรกที่เริ่มทำประกันภัย</p>
+      </section>
+      <div class="table-ng-warning">คำเตือน เอกสารฉบับนี้เป็นเพียงตัวอย่างในการคำนวณเพื่อใช้ประกอบการทำความเข้าใจผลิตภัณฑ์ให้กับลูกค้าของบริษัทฯ เท่านั้น</div>
+      <div class="table-ng-signature"><span>เสนอ</span><span>นำเสนอโดย</span><span>เลขที่ใบอนุญาต</span><span>สาขา</span><span>โทร.</span></div>
+    </div>
+    <p class="table-ng-note"><strong>ตาราง ง.</strong> เอกสารประกอบการขายกรมธรรม์ — แสดงค่าประมาณการรายปีจากผลการคำนวณชุดเดียวกับ Projection รายปี</p>
+    <div class="table-wrap">
+      <table class="table-ng">
+        <thead>
+          <tr>
+            <th rowspan="2">ปีกรมธรรม์</th><th rowspan="2">อายุ</th><th rowspan="2">จำนวนเงินเอาประกันภัย</th>
+            <th colspan="5">เบี้ยประกันภัย (บาท)</th><th colspan="3">รายการหักและผลประโยชน์ (บาท)</th>
+            <th rowspan="2">อัตราผลตอบแทนที่ใช้</th><th colspan="3">มูลค่าบัญชี (บาท)</th><th rowspan="2">ผลประโยชน์กรณีเสียชีวิต</th>
+          </tr>
+          <tr>
+            <th>เบี้ยหลัก RP</th><th>เบี้ย Top-up</th><th>เบี้ยสัญญาเพิ่มเติม</th><th>รวมปีนี้</th><th>รวมสะสม</th>
+            <th>ค่าใช้จ่ายสัญญาเพิ่มเติม</th><th>เงินถอนรับสุทธิ</th><th>เงินเกษียณรับสุทธิ</th>
+            <th>ต้นปี</th><th>สิ้นปี</th><th>เปลี่ยนแปลงสุทธิ</th>
+          </tr>
+        </thead>
+        <tbody id="tableNgProjection"></tbody>
+      </table>
+    </div>
+    <button class="secondary" style="margin-top:10px" onclick="exportTableNg()">Export CSV ตาราง ง.</button>
+  </div>
 </section>
 
 <section class="card">
@@ -327,6 +427,14 @@ td input,td select{width:100%;min-width:95px;height:35px;border:1px solid #aebdd
     </div>
   </div>
 </section>
+
+<div class="wizard-nav">
+  <button class="ghost" id="wizardPrev" onclick="wizardMove(-1)">ย้อนกลับ</button>
+  <div class="right">
+    <button class="ghost" onclick="saveDraft()">บันทึกร่าง</button>
+    <button class="primary" id="wizardNext" onclick="wizardMove(1)">ถัดไป</button>
+  </div>
+</div>
 
 </div>
 
@@ -415,18 +523,18 @@ let withdrawals=[
 ];
 let annualProjection=[],monthlyProjection=[],premiumStale=false,version=1;
 const riderCatalog={
-  PA1:{group:'PA',name:'อ.1',plan:'ผลประโยชน์ อ.1',coverAge:70,ageRange:'18-70',premium:1200},
-  PA2:{group:'PA',name:'อ.2',plan:'ผลประโยชน์ อ.2',coverAge:70,ageRange:'18-70',premium:1800},
-  PA3:{group:'PA',name:'อ.3',plan:'ผลประโยชน์ อ.3',coverAge:70,ageRange:'18-70',premium:2500},
-  HC_STD:{group:'HEALTH',name:'แผนทีเอชซี มาตรฐาน',plan:'แผน 1',coverAge:99,ageRange:'40-99',premium:8200},
-  HC_PLUS:{group:'HEALTH',name:'แผนทีเอชซี พลัส',plan:'H 2000 Deduct 0',coverAge:99,ageRange:'40-99',premium:16350},
-  HC_PREM:{group:'HEALTH',name:'แผนทีเอชซี พรีเมียม',plan:'Premium Plan',coverAge:99,ageRange:'40-99',premium:22000},
-  OP4:{group:'HEALTH',name:'ผู้ป่วยนอก OP4',plan:'OPD 4',coverAge:70,ageRange:'18-70',premium:6500},
-  CI_HOSP:{group:'CI',name:'รพ.',plan:'Hospital Cash',coverAge:70,ageRange:'18-70',premium:3800},
-  CI_PLUS:{group:'CI',name:'แผนซีไอ เฮลท์ พลัส',plan:'CI Health Plus',coverAge:85,ageRange:'18-65',premium:7200},
-  CI2:{group:'CI',name:'ซีไอ 2',plan:'CI 2',coverAge:85,ageRange:'18-65',premium:5600},
-  CI_LUMP:{group:'CRITICAL',name:'ทร.48',plan:'Critical Illness 48',coverAge:85,ageRange:'18-65',premium:9100},
-  CANCER:{group:'CRITICAL',name:'Cancer Care',plan:'Cancer Lump Sum',coverAge:85,ageRange:'18-65',premium:7800}
+  PA1:{group:'PA',name:'อ.1',plan:'ผลประโยชน์ อ.1',sumAssured:500000,coverAge:70,ageRange:'18-70',premium:1200},
+  PA2:{group:'PA',name:'อ.2',plan:'ผลประโยชน์ อ.2',sumAssured:500000,coverAge:70,ageRange:'18-70',premium:1800},
+  PA3:{group:'PA',name:'อ.3',plan:'ผลประโยชน์ อ.3',sumAssured:500000,coverAge:70,ageRange:'18-70',premium:2500},
+  HC_STD:{group:'HEALTH',name:'แผนทีเอชซี มาตรฐาน',plan:'แผน 1',sumAssured:1000000,coverAge:99,ageRange:'40-99',premium:8200},
+  HC_PLUS:{group:'HEALTH',name:'แผนทีเอชซี พลัส',plan:'H 2000 Deduct 0',sumAssured:2000000,coverAge:99,ageRange:'40-99',premium:16350},
+  HC_PREM:{group:'HEALTH',name:'แผนทีเอชซี พรีเมียม',plan:'Premium Plan',sumAssured:5000000,coverAge:99,ageRange:'40-99',premium:22000},
+  OP4:{group:'HEALTH',name:'ผู้ป่วยนอก OP4',plan:'OPD 4',sumAssured:40000,coverAge:70,ageRange:'18-70',premium:6500},
+  CI_HOSP:{group:'CI',name:'รพ.',plan:'Hospital Cash',sumAssured:1000,coverAge:70,ageRange:'18-70',premium:3800},
+  CI_PLUS:{group:'CI',name:'แผนซีไอ เฮลท์ พลัส',plan:'CI Health Plus',sumAssured:1000000,coverAge:85,ageRange:'18-65',premium:7200},
+  CI2:{group:'CI',name:'ซีไอ 2',plan:'CI 2',sumAssured:1000000,coverAge:85,ageRange:'18-65',premium:5600},
+  CI_LUMP:{group:'CRITICAL',name:'ทร.48',plan:'Critical Illness 48',sumAssured:1000000,coverAge:85,ageRange:'18-65',premium:9100},
+  CANCER:{group:'CRITICAL',name:'Cancer Care',plan:'Cancer Lump Sum',sumAssured:1000000,coverAge:85,ageRange:'18-65',premium:7800}
 };
 let selectedRiders=[];
 
@@ -606,10 +714,10 @@ function syncRiderTable(){
         const r=riderCatalog[code];
         return `<tr>
           <td>${r.name}</td>
-          <td>${r.plan}</td>
+          <td><input type="number" value="${r.sumAssured||0}" step="1000" title="${r.plan}" onchange="riderCatalog['${code}'].sumAssured=Number(this.value||0);renderTableNgDocument()"></td>
           <td>${r.coverAge}</td>
           <td>${r.ageRange}</td>
-          <td><input type="number" value="${r.premium}" step="100" onchange="riderCatalog['${code}'].premium=Number(this.value||0)"></td>
+          <td><input type="number" value="${r.premium}" step="100" onchange="riderCatalog['${code}'].premium=Number(this.value||0);renderTableNgDocument()"></td>
         </tr>`;
       }).join('');
   };
@@ -617,6 +725,7 @@ function syncRiderTable(){
   render('HEALTH','riderHealth');
   render('CI','riderCI');
   render('CRITICAL','riderCritical');
+  if($('ngRiderRows'))renderTableNgDocument();
 }
 function validateRiders(){
   const errors=[];
@@ -631,6 +740,9 @@ function validateRiders(){
       }
       if(r.premium<=0){
         errors.push(`${r.name}: เบี้ย Rider ต้องมากกว่า 0`);
+      }
+      if((r.sumAssured||0)<=0){
+        errors.push(`${r.name}: จำนวนเงินเอาประกันภัยต้องมากกว่า 0`);
       }
     });
   }
@@ -736,6 +848,7 @@ function calculate(){
   renderWithdrawals(withdrawalResult);
   renderAnnual();
   renderMonthly();
+  renderTableNg();
   switchTab(0);
   toast('คำนวณแผนเรียบร้อย');
 }
@@ -754,7 +867,68 @@ function renderMonthly(){
     <td>${fmt(x.avBefore)}</td><td>${fmt(x.avAfter)}</td><td>${fmt(x.death)}</td>
   </tr>`).join('');
 }
+function tableNgRows(){
+  let accumulatedPremium=0;
+  return annualProjection.map(x=>{
+    const riderPremium=x.riderCharge||0;
+    const annualPremium=x.rp+x.topup+riderPremium;
+    accumulatedPremium+=annualPremium;
+    return {...x,sumAssured:x.rp*10,riderPremium,annualPremium,accumulatedPremium,
+      netChange:x.avAfter-x.avBefore,expectedReturnRate:4};
+  });
+}
+function ngMoney(value){return Number(value||0).toLocaleString('th-TH',{maximumFractionDigits:0})}
+function renderTableNgDocument(){
+  const current=num('currentAge');
+  const payEnd=num('payEndAge');
+  const paymentYears=Math.max(0,payEnd-current+1);
+  selectedRiders=[...document.querySelectorAll('[data-rider]:checked')].map(x=>x.dataset.rider);
+  $('ngProductName').textContent=$('product').value==='UWB'?'ไลฟ์เวิร์ส เวลท์ ฟิต 99/99':$('product').value;
+  $('ngPremiumCondition').textContent=`คุ้มครองอายุ ${current} ปี ถึงอายุ ${num('coverageAge')} ปี    EM: ${num('em')}%    ชำระเบี้ยประกันภัย ${$('paymentMode').value} เป็นเวลา ${paymentYears} ปี ตั้งแต่อายุ ${current} ปี ถึงอายุ ${payEnd} ปี`;
+  let totalRp=0,totalTopup=0;
+  const premiumDetailRows=premiumRows.map(r=>{
+    const effectiveStart=Math.max(current,r.start);
+    const effectiveEnd=Math.min(payEnd,r.end);
+    const years=Math.max(0,effectiveEnd-effectiveStart+1);
+    totalRp+=r.rp*years;
+    totalTopup+=r.topup*years;
+    return `<tr><td>${r.start} - ${r.end}</td><td>${ngMoney(r.rp)}</td><td>${ngMoney(r.topup)}</td><td>${ngMoney(r.rp+r.topup)}</td></tr>`;
+  }).join('');
+  const premiumTotalRow=`<tr><td><strong>รวมตลอดระยะเวลาชำระ ${paymentYears} ปี</strong></td><td><strong>${ngMoney(totalRp)}</strong></td><td><strong>${ngMoney(totalTopup)}</strong></td><td><strong>${ngMoney(totalRp+totalTopup)}</strong></td></tr>`;
+  $('ngPremiumRows').innerHTML=premiumDetailRows?premiumDetailRows+premiumTotalRow:'<tr><td colspan="4">-</td></tr>';
+
+  const saSegments=[];
+  tableNgRows().forEach(x=>{const last=saSegments[saSegments.length-1];if(!last||last.sa!==x.sumAssured)saSegments.push({age:x.age,sa:x.sumAssured})});
+  $('ngSaRows').innerHTML=saSegments.map(x=>`<tr><td>${x.age}</td><td>${ngMoney(x.sa)}</td></tr>`).join('')||'<tr><td colspan="2">กรุณาคำนวณ</td></tr>';
+  $('ngRateRows').innerHTML=`<tr><td>${current}</td><td>4.00</td></tr>`;
+
+  $('ngWithdrawalRows').innerHTML=withdrawals.map(r=>{
+    const startYear=r.startAge-current+1,endYear=r.endAge-current+1;
+    const ageRange=r.startAge===r.endAge?`${r.startAge}`:`${r.startAge} - ${r.endAge}`;
+    const yearRange=startYear===endYear?`${startYear}`:`${startYear} - ${endYear}`;
+    const every=r.frequency==='รายเดือน'?'รายเดือน':r.frequency==='รายปี'?'1':r.frequency;
+    return `<tr><td>${r.type}</td><td>${ngMoney(r.amount)}</td><td>${ageRange}</td><td>${yearRange}</td><td>${every}</td></tr>`;
+  }).join('')||'<tr><td colspan="5">ไม่มีรายการ</td></tr>';
+
+  const annuityEnabled=$('goalEnabled').value==='Y';
+  const annuityYear=num('retireStartAge')-current+1;
+  const annuityAmount=num('retireAmount')*($('retireFrequency').value==='monthly'?12:1);
+  $('ngAnnuityWithdrawal').innerHTML=annuityEnabled?`<tr><td>${ngMoney(annuityAmount)}</td><td>${num('retireStartAge')}</td><td>${annuityYear}</td></tr>`:'<tr><td colspan="3">ไม่มีรายการ</td></tr>';
+  $('ngAnnuityIncome').innerHTML=annuityEnabled?`<tr><td>${annuityYear}</td><td>${num('retireStartAge')}</td><td>${ngMoney(annuityAmount)}</td></tr>`:'<tr><td colspan="3">ไม่มีรายการ</td></tr>';
+
+  $('ngRiderRows').innerHTML=selectedRiders.map(code=>{const r=riderCatalog[code];return `<tr data-rider-code="${code}"><td>${r.name}</td><td>${ngMoney(r.sumAssured)}</td><td>${ngMoney(r.premium)}</td><td>${r.coverAge}</td></tr>`}).join('')||'<tr><td colspan="4">ไม่มีสัญญาเพิ่มเติม</td></tr>';
+}
+function renderTableNg(){
+  renderTableNgDocument();
+  $('tableNgProjection').innerHTML=tableNgRows().map(x=>`<tr>
+    <td>${x.policyYear}</td><td>${x.age}</td><td>${fmt(x.sumAssured)}</td>
+    <td>${fmt(x.rp)}</td><td>${fmt(x.topup)}</td><td>${fmt(x.riderPremium)}</td><td>${fmt(x.annualPremium)}</td><td>${fmt(x.accumulatedPremium)}</td>
+    <td>${fmt(x.riderCharge||0)}</td><td>${fmt(x.withdrawal)}</td><td>${fmt(x.retirement)}</td><td>${x.expectedReturnRate.toFixed(2)}%</td>
+    <td>${fmt(x.avBefore)}</td><td>${fmt(x.avAfter)}</td><td>${fmt(x.netChange)}</td><td>${fmt(x.death)}</td>
+  </tr>`).join('');
+}
 function switchTab(i){
+  if(i===3)renderTableNg();
   document.querySelectorAll('.tab').forEach((x,j)=>x.classList.toggle('active',i===j));
   document.querySelectorAll('.panel').forEach((x,j)=>x.classList.toggle('active',i===j));
 }
@@ -774,6 +948,13 @@ function exportMonthly(){
   downloadCSV('life-planning-monthly.csv',[
     ['Month No','Age','Policy Month','RP','Top-up','Rider Charge','Retirement Net','Surcharge','Withdrawal','AV Before','AV After','Death Benefit'],
     ...monthlyProjection.map(x=>[x.monthNo,x.age,x.policyMonth,x.rp,x.topup,x.riderCharge||0,x.retirement,x.surcharge,x.withdrawal,Math.round(x.avBefore),Math.round(x.avAfter),Math.round(x.death)])
+  ]);
+}
+function exportTableNg(){
+  if(!annualProjection.length){toast('กรุณาคำนวณก่อน');return}
+  downloadCSV('life-planning-table-ng.csv',[
+    ['Policy Year','Age','Sum Assured','RP','Top-up','Rider Premium','Annual Premium','Accumulated Premium','Rider Charge','Net Withdrawal','Net Retirement Benefit','Expected Return Rate','Opening Account Value','Ending Account Value','Net Change','Death Benefit'],
+    ...tableNgRows().map(x=>[x.policyYear,x.age,Math.round(x.sumAssured),x.rp,x.topup,Math.round(x.riderPremium),Math.round(x.annualPremium),Math.round(x.accumulatedPremium),Math.round(x.riderCharge||0),Math.round(x.withdrawal),Math.round(x.retirement),x.expectedReturnRate+'%',Math.round(x.avBefore),Math.round(x.avAfter),Math.round(x.netChange),Math.round(x.death)])
   ]);
 }
 
@@ -944,7 +1125,8 @@ function saveDraft(){
 }
 function loadDraft(){
   const raw=localStorage.getItem('lpFullPrototype');if(!raw){toast('ไม่พบข้อมูลร่าง');return}
-  const d=JSON.parse(raw);premiumRows=d.premiumRows||premiumRows;withdrawals=d.withdrawals||withdrawals;version=d.version||1;selectedRiders=d.selectedRiders||[];if(d.riderCatalog)Object.assign(riderCatalog,d.riderCatalog);
+  const d=JSON.parse(raw);premiumRows=d.premiumRows||premiumRows;withdrawals=d.withdrawals||withdrawals;version=d.version||1;selectedRiders=d.selectedRiders||[];
+  if(d.riderCatalog)Object.entries(d.riderCatalog).forEach(([code,saved])=>{if(riderCatalog[code])riderCatalog[code]={...riderCatalog[code],...saved,sumAssured:saved.sumAssured??riderCatalog[code].sumAssured}});
   Object.entries(d.values||{}).forEach(([k,v])=>{if($(k))$(k).value=v});
   premiumStale=false;renderPremium();renderWithdrawals();toggleRetirement();
   document.querySelectorAll('[data-rider]').forEach(x=>x.checked=selectedRiders.includes(x.dataset.rider));
@@ -954,7 +1136,29 @@ function resetAll(){localStorage.removeItem('lpFullPrototype');location.reload()
 function newVersion(){version++;$('kVersion').textContent='V'+version;toast('สร้าง Calculation Version V'+version)}
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200)}
 
-renderPremium();renderWithdrawals();toggleRetirement();toggleRiders();syncRiderTable();sync();
+const wizardLabels=['ข้อมูลกรมธรรม์','กำหนดเบี้ย','แผนเกษียณ','การถอนเงิน','สัญญาเพิ่มเติม','ผลลัพธ์','เอกสาร'];
+let wizardIndex=0;
+function renderWizard(){
+  const cards=[...document.querySelectorAll('.stack > .card')];
+  cards.forEach((card,index)=>card.classList.toggle('wizard-active',index===wizardIndex));
+  const steps=$('wizardSteps');
+  steps.innerHTML=wizardLabels.map((label,index)=>`<button type="button" class="wizard-step ${index===wizardIndex?'active':index<wizardIndex?'done':''}" onclick="wizardGo(${index})">${index+1}. ${label}</button>`).join('');
+  $('wizardTitle').textContent=wizardLabels[wizardIndex];
+  $('wizardCounter').textContent=`ขั้นตอน ${wizardIndex+1} จาก ${wizardLabels.length}`;
+  $('wizardProgress').style.width=`${((wizardIndex+1)/wizardLabels.length)*100}%`;
+  $('wizardPrev').disabled=wizardIndex===0;
+  $('wizardNext').textContent=wizardIndex===wizardLabels.length-1?'กลับไปแก้ไข':'ถัดไป';
+  document.querySelector('.summary').classList.toggle('wizard-summary-active',wizardIndex===5);
+  if(wizardIndex===5)calculate();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function wizardGo(index){wizardIndex=Math.max(0,Math.min(wizardLabels.length-1,index));renderWizard()}
+function wizardMove(direction){
+  if(wizardIndex===wizardLabels.length-1&&direction>0){wizardGo(0);return}
+  wizardGo(wizardIndex+direction);
+}
+
+renderPremium();renderWithdrawals();toggleRetirement();toggleRiders();syncRiderTable();sync();renderWizard();
 </script>
 </body>
 </html>

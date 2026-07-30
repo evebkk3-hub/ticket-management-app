@@ -1,0 +1,77 @@
+@startuml
+title Life Planning - Task Flows
+skinparam backgroundColor #F8FAFC
+skinparam shadowing false
+skinparam roundcorner 14
+skinparam activity {
+  BackgroundColor White
+  BorderColor #94A3B8
+  DiamondBackgroundColor #FEF3C7
+  DiamondBorderColor #F59E0B
+  ArrowColor #64748B
+}
+
+start
+:Task 0 - Create / Select Life Planning;
+:Select prospect and product UWB/UWD;
+if (Eligible and authorized?) then (Yes)
+  :Create plan in DRAFT;
+else (No)
+  :Display eligibility / permission error;
+  stop
+endif
+
+:Task 1 - Coverage Information;
+:Enter current age, coverage age, payment end age;
+:Validate age relationship and product limits;
+
+:Task 2 - Finance Information;
+:Capture goal, income, expense and risk assumptions;
+:Validate required values and numeric ranges;
+
+:Task 3 - Rider Information;
+:Load eligible riders from configuration;
+:Select rider and benefit amount;
+if (Age, product and coverage valid?) then (Yes)
+  :Calculate rider annual premium;
+else (No)
+  :Show rider field errors;
+  detach
+endif
+
+:Task 4 - Payment Period;
+:Generate continuous premium segments;
+:Enter RP and Top-up per segment;
+if (Segments continuous and within payment age?) then (Yes)
+  :Save premium segments;
+else (No)
+  :Require regeneration / correction;
+  detach
+endif
+
+:Task 5 - Return Rate and Withdrawal;
+:Select configured return scenario;
+:Add one-time or recurring withdrawals;
+:Validate withdrawal age, frequency and amount;
+
+:Task 6 - Recommended Premium;
+:Create immutable calculation snapshot;
+:Run monthly Account Value projection;
+if (AV and premium checks pass?) then (Yes)
+  :Save calculation result and projections;
+else (No)
+  :Show Not Enough / adjustment recommendation;
+  detach
+endif
+
+:Task 7 - Summary;
+:Review premium, retirement, rider and benefit summary;
+fork
+  :Save draft / create a new version;
+fork again
+  :Generate proposal PDF;
+fork again
+  :Submit locked version to Quotation;
+end fork
+stop
+@enduml

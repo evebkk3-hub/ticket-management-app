@@ -1,0 +1,52 @@
+@startuml
+title RYP Payment Database - Pre-Design
+hide methods
+hide stereotypes
+
+entity "asa_after.ryp_payment_history" as history {
+  * id : bigint <<PK>>
+  --
+  agent_id : varchar(10)
+  policy_no : varchar(10)
+  plan_code : varchar(10)
+  due_date : timestamptz
+  grace_end_date : timestamptz
+  payment_status : varchar(5)
+  total_premium : numeric(12,2)
+  record_version : bigint
+  delete_time : timestamptz
+}
+
+entity "asa_after.ryp_payment_transaction" as transaction {
+  * id : bigint <<PK>>
+  --
+  * ryp_payment_history_id : bigint <<FK>>
+  transaction_uuid : uuid <<UK>>
+  idempotency_key : varchar(100) <<UK>>
+  policy_no : varchar(10)
+  collection_id : varchar(20)
+  transaction_status : varchar(5)
+  payment_type : varchar(5)
+  total_amount : numeric(12,2)
+  response_code : varchar(20)
+  pay_date : timestamptz
+}
+
+entity "asa_after.ryp_payment_detail" as detail {
+  * id : bigint <<PK>>
+  --
+  * ryp_payment_transaction_id : bigint <<FK,UK>>
+  pay_period : varchar(4)
+  sequence : integer
+  life_premium : numeric(12,2)
+  rider_premium : numeric(12,2)
+  rsp_premium : numeric(12,2)
+  extra_premium : numeric(12,2)
+  topup_premium : numeric(12,2)
+  apl_amount : numeric(12,2)
+  total_premium : numeric(12,2)
+}
+
+history ||--o{ transaction : contains
+transaction ||--|| detail : itemizes
+@enduml

@@ -7,6 +7,8 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -56,8 +58,16 @@ final class WebApplication {
                 render(exchange, loginPage(""));
                 return;
             }
+            if ("GET".equalsIgnoreCase(exchange.getRequestMethod()) && "/life-planning".equals(path)) {
+                render(exchange, lifePlanningPage());
+                return;
+            }
             if ("/logout".equals(path)) {
                 logout(exchange);
+                return;
+            }
+            if (path.startsWith("/api/life-planning")) {
+                handleLifePlanningApi(exchange, path);
                 return;
             }
             if (!isAuthenticated(exchange)) {
@@ -162,6 +172,7 @@ final class WebApplication {
             case "/apl/reconcile" -> aplReconcilePage();
             case "/apl/gl" -> aplGlPage();
             case "/apl/reports" -> aplReportsPage();
+            case "/life-planning" -> lifePlanningPage();
             case "/roadmap" -> roadmapPage();
             case "/projects" -> projectsPage();
             case "/tickets" -> ticketsPage();
@@ -169,6 +180,39 @@ final class WebApplication {
             case "/social" -> socialPage();
             default -> createPage();
         };
+    }
+
+    private String lifePlanningPage() {
+        try {
+            return Files.readString(Path.of("LiftPlanV2.htm"), StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            return layout("Life Planning", "<section class='panel'><h2>Life Planning</h2><p>ไม่พบไฟล์หน้าจอ Life Planning</p><pre>"
+                    + escape(exception.toString()) + "</pre></section>");
+        }
+    }
+
+    private void handleLifePlanningApi(HttpExchange exchange, String path) throws IOException {
+        if (!isPost(exchange) || !"/api/life-planning/calculate".equals(path)) {
+            renderJson(exchange, "{\"error\":\"api_not_found\"}", 404);
+            return;
+        }
+        Map<String, String> form = readForm(exchange);
+        try {
+            LifePlanningCalculator.Result result = LifePlanningCalculator.calculate(
+                    Integer.parseInt(form.getOrDefault("currentAge", "0")),
+                    Integer.parseInt(form.getOrDefault("coverageAge", "0")),
+                    Integer.parseInt(form.getOrDefault("payEndAge", "0")),
+                    "true".equalsIgnoreCase(form.getOrDefault("retirementEnabled", "false")),
+                    Integer.parseInt(form.getOrDefault("retirementStartAge", "0")),
+                    Integer.parseInt(form.getOrDefault("retirementEndAge", "0")),
+                    Double.parseDouble(form.getOrDefault("retirementAmount", "0")),
+                    "monthly".equalsIgnoreCase(form.getOrDefault("retirementFrequency", "yearly")),
+                    Double.parseDouble(form.getOrDefault("riderAnnualPremium", "0")),
+                    LifePlanningCalculator.parseSegments(form.getOrDefault("segments", "")));
+            renderJson(exchange, result.toJson(), result.valid() ? 200 : 422);
+        } catch (NumberFormatException exception) {
+            renderJson(exchange, "{\"valid\":false,\"errors\":[\"รูปแบบตัวเลขไม่ถูกต้อง\"]}", 400);
+        }
     }
 
     private String loginPage(String error) {
@@ -2151,7 +2195,7 @@ POST /api/apl/reconcile/{paymentId}/approve</pre>
                   <header>
                     <div class="topbar">
                       <div class="brand"><div class="brand-mark">TM</div><div><h1>Ticket Management</h1><small>Monitor, route, and resolve customer issues</small></div></div>
-                      <nav><a href="/">Create Ticket</a><a href="/apl">APL Payment</a><a href="/apl/receipts">Receipts</a><a href="/apl/reconcile">Reconcile</a><a href="/apl/gl">GL</a><a href="/apl/reports">Reports</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a><a href="/logout">Logout</a></nav>
+                      <nav><a href="/">Create Ticket</a><a href="/life-planning">Life Planning</a><a href="/apl">APL Payment</a><a href="/apl/receipts">Receipts</a><a href="/apl/reconcile">Reconcile</a><a href="/apl/gl">GL</a><a href="/apl/reports">Reports</a><a href="/roadmap">Roadmap</a><a href="/projects">Projects</a><a href="/tickets">List View</a><a href="/pantip">Pantip Monitor</a><a href="/social">Social Monitor</a><a href="/logout">Logout</a></nav>
                     </div>
                   </header>
                   <main><div class="page-head"><div><h2>%s</h2><p>Operational workspace for tickets and social monitoring.</p></div></div>%s</main>

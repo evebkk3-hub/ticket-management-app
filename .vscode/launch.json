@@ -1,0 +1,15 @@
+{
+    "configurations": [
+        {
+            "name": "Containers: Node.js Launch",
+            "type": "docker",
+            "request": "launch",
+            "preLaunchTask": "docker-run: debug",
+            "platform": "node",
+            "node": {
+                "package": "${workspaceFolder}/projects/renewal-payment-mobile/mobile-renewal-payment/package.json",
+                "localRoot": "${workspaceFolder}/projects/renewal-payment-mobile/mobile-renewal-payment"
+            }
+        }
+    ]
+}

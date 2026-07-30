@@ -2,6 +2,16 @@
 
 Run this checklist before releasing the application.
 
+## Life Planning
+
+- [ ] `run-life-planning.cmd` compiles and starts the Java web server
+- [ ] `/life-planning` loads without login and displays correct UTF-8 Thai text
+- [ ] Premium segments can be added and recalculated
+- [ ] Retirement and withdrawal inputs are validated
+- [ ] Riders can be selected and included in the summary
+- [ ] Draft data can be saved and loaded
+- [ ] Proposal PDF generation completes without a JavaScript error
+
 ## 1. Build Test
 
 ```powershell

@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "Life Planning",
+    "slug": "life-planning-ipad",
+    "version": "0.1.0",
+    "orientation": "landscape",
+    "scheme": "lifeplanning",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.tlsmart.lifeplanning",
+      "supportsTablet": true,
+      "requireFullScreen": true,
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "plugins": ["expo-font"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}
