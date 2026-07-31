@@ -1,0 +1,166 @@
+				019f6021-38ed-71e0-9a0f-bd58485a76d9	ชำระเบี้ยปีต่อ	RYPPAYMENT		
+				
+
+Icon***
+PROSPECTIVE
+SELFEXAM
+TEAMEXAM
+REGISLICENSE
+RENEWLICENSE
+REQUESTLICENSE
+APPROVALREQUEST
+REQUESTAPPOINTMENT
+TRACKINGSTATUS
+PLANNINGSIMULATION
+
+RYPSUMMARY
+
+Add widget RYPPAYMENT
+Add widget RYPPAYMENTSUMMARY
+
+Confluence
+
+Retrieve RYP renewal premium payment widget information. The API returns eligible policy details and payment status required to display the renewal premium payment widget for agents, including outstanding premium information and related policy details.
+
+
+asa_widget Table.xlsx
+asa_widget_permission Table.xlsx
+asa_widget_ryp Table.xlsx
+asa_widget_ryp_permission Table.xlsx
+ 
+
+[enhance] asa_menu_tree
+[enhance] asa_permission
+[enhance] asa_menu_permission
+[enhance] asa_group_permission
+[enhance] ms_common.system_config
+[enhance] asa_widget_shortcut Table
+
+
+
+asa_widget_shortcut 
+asa_widget 
+asa_widget_permission 
+asa_widget_ryp 
+asa_widget_ryp_permission 
+
+asa_menu_tree
+asa_permission
+asa_menu_permission
+asa_group_permission
+
+
+
+asa_group_position 
+
+
+RYP_ALL
+    → widget.action
+
+รายการอื่นที่ is_active = true
+    → widget.items[]
+
+widget.items[].code
+    = list_of_value.sub_code
+
+widget.items[].filterType
+    = list_of_value.code
+
+widget.items[].label
+    = list_of_value.name
+
+widget.items[].value
+    = COALESCE(countResult, 0)
+
+ 
+ 
+ 
+Dynamic Processing Logic
+1. Select List of Value
+   WHERE search_key = 'RYP_SUMMARY_WIDGET'
+   AND is_active = true
+   ORDER BY seq ASC
+2. ดึง Payment Transaction ล่าสุดของแต่ละกรมธรรม์
+3. ใช้ Payment Transaction ร่วมกับ Due Date
+   เพื่อหา resolvedLovCode ของแต่ละ policy_no
+4. COUNT DISTINCT policy_no
+   GROUP BY resolvedLovCode
+5. LEFT JOIN:
+   list_of_value.code = resolvedLovCode
+6. ถ้าไม่พบข้อมูลให้ value = 0
+7. ถ้า code = RYP_ALL:
+   Map เป็น widget.action
+8. ถ้า code <> RYP_ALL:
+   Map เป็น widget.items[]
+9. ใช้:
+   code     → filterType
+   sub_code → item code
+   name     → label
+   
+   
+ สำหรับ RYP Widget ตัวอย่างคือ:
+
+1. User เปิดเมนู “ดูแลลูกค้า”
+2. Frontend ตรวจพบว่าต้องแสดง RYP Widget
+3. ตรวจ Permission RYP_VIEW
+4. ถ้ามีสิทธิ์ จึงเรียก:
+   GET /ms-after/v1/renewal-policy/widget
+5. นำ Response มาแสดง Widget
+
+ต่างจากแบบ EAGER:
+
+Loading Type	การทำงาน
+EAGER	เรียก API ทันทีเมื่อเปิดหน้าหรือเริ่มโหลด Application
+LAZY	เรียก API เมื่อผู้ใช้เข้าถึง Section/Widget หรือเมื่อ Component ถูก Render
+ON_DEMAND	เรียกเมื่อผู้ใช้กดปุ่มหรือทำ Action โดยตรง
+
+
+
+กรมธรรม์ชำระสำเร็จ แสดงทุกกรมธรรม์หรือไม่ หรือแสดง กรมเดียวล่าสุด
+แต่ Detail ต้องแสดงทุกรายการ 2 เดือนจาก Payment Date
+
+
+Initial Load
+→ POST /ms-members/v1/members/get-menu-nav
+→ แสดงเมนู “ดูแลลูกค้า”
+→ User เปิดเมนู
+→ LAZY call GET /ms-after/v1/renewal-policy/widget
+→ ตรวจ Permission RYP_VIEW
+→ แสดง Summary Widget
+
+
+
+## api get Menu Nav
+POST /ms-members/v1/members/get-menu-nav
+https://tlidigitalgroup.atlassian.net/wiki/spaces/TNS/pages/935231848/POST+ms-members+v1+members+get-menu-nav+-+R1+S3
+Expect: response ต้องมี menuList[].menuCode = "CUSTOMER"
+ 
+## api get After landing page
+POST /ms-after/v1/customer/landing
+a) call POST /ms-members/v1/members/agent/get-permission
+b) call GET /ms-members/v1/menu/list-features
+Expect: response ต้องมี data.featureLists[].code = "RYP"
+
+POST /ms-members/v1/members/get-menu-nav
+→ menuList[].menuCode = "CUSTOMER"
+→ แสดงเมนู “ดูแลลูกค้า”
+→ POST /ms-after/v1/customer/landing
+→ POST /ms-members/v1/members/agent/get-permission
+→ GET /ms-members/v1/menu/list-features
+→ data.featureLists[].code = "RYP"
+→ แสดง Section “ชำระเบี้ยปีต่อ”
+===================================================
+
+
+กดจ่าย แต่ไม่ได้จ่ายจริง 10 รอบ จะมีประวัติการชำระที่ Transaction จำเป็นต้องตรวจสอบที่ BCP ทุกรายการ
+ถ้าหน้าบ้านมีรายการรอผลชำระเงินจำนวนนาน มีผลต้องตรวจสอบ ภายในระยะเวลาเท่าไหร่ เกินกว่านั้นไม่ต้องตรวจสอบใช่หรือไม่
+**กรุณาลูกค้าชำระเข้ามาโดยไม่แจ้งในตัวแทนทราบ พอใกล้สิ้นสุด Due ตัวแทนชำระเข้ามา ต้องทำอย่างไรเนื่องจากข้อมูล D-1
+
+กรณีชำระช่องทางอื่น
+- เช็คอย่างไร , ข้อมูล Diff หรือไม่
+- 
+
+collection,งวดที่,ปีที่
+เอาข้อมูลที่เลือกไปเช้คกับทาง BCP ก่อน
+กดมาหลายครั้งไม่เก็บทั้งหมด
+group by policy, งวดที่, ปีที่

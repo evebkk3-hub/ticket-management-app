@@ -1,0 +1,188 @@
+ออกแบบ Solution ระดับ Conceptual / High-level
+
+ส่วนที่ออกแบบได้แล้ว
+
+สามารถเริ่มออกแบบได้ในหัวข้อต่อไปนี้
+
+Notification Architecture
+Trigger จาก Scheduler หรือ Batch
+อ่านรายการกรมธรรม์ที่ใกล้ครบกำหนด
+สร้าง Notification
+ส่งผ่าน Notification Service
+บันทึก Notification History
+รองรับ Deep Link เข้าหน้ารายการกรมธรรม์
+Notification Template แบบ Config
+Notification Code
+Title
+Description
+Trigger Condition
+Notification Time
+Deep Link
+Effective Date
+Active Flag
+กลุ่มเหตุการณ์เบื้องต้น
+เตือนก่อนครบกำหนด
+เตือนใกล้ครบกำหนด
+เตือนครบกำหนดวันนี้
+หลักการออกแบบเพื่อรองรับการเปลี่ยนแปลง
+ไม่ Hardcode ข้อความ
+ไม่ Hardcode จำนวนวัน
+แยก Condition กับ Template
+รองรับเปิด–ปิด Notification แต่ละประเภท
+รองรับ Version ของ Template
+โครงสร้าง Integration เบื้องต้น
+Source System ส่งข้อมูลกรมธรรม์
+Notification Service ประมวลผล
+TL Smart / Mobile App รับ Push Notification
+Deep Link กลับเข้าสู่หน้าที่เกี่ยวข้อง
+คำถามที่ต้องได้คำตอบก่อนทำ Detail Design
+1. Scope และ Sprint
+No.	คำถาม	เหตุผล
+1	รอบนี้ต้องทำเฉพาะ Notification หรือรวม Flow ส่งมอบกรมธรรม์ด้วย	ป้องกันออกแบบเกิน Scope
+2	e-Policy, e-RIT, e-KYC และ Red List อยู่ Sprint นี้หรือ Sprint ถัดไป	ในที่ประชุมยังไม่ชัด
+3	Feature ใดเป็น Priority 1, 2 และ 3	ใช้จัดลำดับ Design และ Development
+4	ส่วนที่รอประกาศ คปภ. ให้จัดเป็น Out of Scope หรือทำโครงสร้างรองรับไว้ก่อน	ป้องกัน Rework
+5	ใครเป็นผู้อนุมัติ Final Scope	ต้องมี Decision Owner ชัดเจน
+2. Notification Condition
+No.	คำถาม	เหตุผล
+6	“ใกล้ครบกำหนด” หมายถึงกี่วันก่อน Due Date	ต้องกำหนดสูตร Trigger
+7	มีการแจ้งก่อนครบกำหนดกี่รอบ เช่น 30, 7, 3 และ 1 วัน	กำหนด Notification Type
+8	แจ้งในวันครบกำหนดเพียงครั้งเดียวหรือแจ้งซ้ำ	ป้องกัน Duplicate
+9	หากลูกค้าชำระแล้วก่อน Batch ทำงาน ยังต้องแจ้งหรือไม่	ต้อง Recheck Payment Status
+10	กรมธรรม์สถานะใดบ้างที่มีสิทธิ์ได้รับ Notification	กำหนด Policy Eligibility
+11	กรมธรรม์ Lapse, Cancel, Surrender หรือ Pending ต้องตัดออกหรือไม่	ป้องกันแจ้งผิดรายการ
+12	ใช้ Due Date จากระบบใดเป็น Source of Truth	ป้องกันข้อมูลไม่ตรงกัน
+13	ใช้วันที่ตาม Calendar Day หรือ Business Day	มีผลต่อวันหยุด
+14	หาก Due Date ตรงวันหยุด ต้องเลื่อนวันแจ้งหรือไม่	ต้องกำหนด Calendar Logic
+3. ผู้รับ Notification
+No.	คำถาม	เหตุผล
+15	Notification ส่งให้ลูกค้า ตัวแทน หรือทั้งสองฝ่าย	ระบุ Recipient
+16	หากส่งให้ตัวแทน สามารถเห็นข้อมูลลูกค้าระดับใด	เกี่ยวข้องกับ PDPA
+17	กรณีเปลี่ยนตัวแทน ให้แจ้งตัวแทนเดิมหรือตัวแทนปัจจุบัน	ต้องใช้ Agent Ownership
+18	หากลูกค้ามีหลาย Device ให้ส่งทุก Device หรือ Device ล่าสุด	กำหนด Push Strategy
+19	หากลูกค้าปิด Push Notification มีช่องทางสำรองหรือไม่	เช่น Inbox, SMS หรือ Email
+20	Agent สามารถแจ้งแทนลูกค้าได้หรือไม่	ในที่ประชุมมีข้อสรุปว่าบางรายการลูกค้าต้องแจ้งเอง ต้องแยกให้ชัด
+4. การรวมรายการ
+No.	คำถาม	เหตุผล
+21	หากผู้รับมีหลายกรมธรรม์ ให้ส่งหนึ่ง Notification ต่อกรมธรรม์ หรือรวมเป็นหนึ่งข้อความ	กระทบข้อความและ Deep Link
+22	หากรวมหลายรายการ ต้องแสดงจำนวนกรมธรรม์หรือยอดรวมด้วยหรือไม่	กำหนด Parameter
+23	เมื่อกด Notification ให้เข้าหน้า List หรือหน้า Policy Detail	กำหนด Deep Link
+24	หากมีเพียงหนึ่งกรมธรรม์ ให้เข้าหน้า Detail โดยตรงหรือยังเข้าหน้า List	กำหนด UX Rule
+25	จำนวนรายการในข้อความต้องนับ DISTINCT Policy หรือจำนวนงวด	ป้องกัน Count ไม่ตรง
+5. Notification Time และ Scheduler
+No.	คำถาม	เหตุผล
+26	ต้องส่ง Notification เวลาใด	เช่น 06:00 น.
+27	Timezone ใช้ Asia/Bangkok ทุกระบบหรือไม่	ป้องกันคลาดเคลื่อน
+28	Batch ทำงานวันละครั้งหรือหลายครั้ง	ออกแบบ Scheduler
+29	หาก Batch ล้มเหลว ต้อง Retry กี่ครั้ง	ออกแบบ Error Handling
+30	หากระบบกลับมาทำงานหลังเวลาส่ง ให้ส่งย้อนหลังหรือข้าม	ป้องกันแจ้งล่าช้า
+31	ต้องมี Manual Resend หรือไม่	ใช้กรณี Production Incident
+6. Duplicate และ Idempotency
+No.	คำถาม	เหตุผล
+32	ใช้ Key อะไรป้องกัน Notification ซ้ำ	เช่น recipient + policy + notification type + trigger date
+33	หากส่ง Push ไม่สำเร็จ แต่บันทึก History แล้ว ต้อง Retry อย่างไร	ป้องกันข้อมูลไม่ตรง
+34	Notification เดิมสามารถถูกสร้างใหม่หลังแก้ไขข้อมูลได้หรือไม่	กำหนด Reprocessing
+35	ต้องเก็บสถานะ Created, Sent, Delivered, Read, Failed หรือไม่	กำหนด History Table
+7. Notification Template
+No.	คำถาม	เหตุผล
+36	ใช้ Template เดียวกับ R2 จริงหรือเพียงอ้างอิงหน้าตา	คำว่า Reuse ยังไม่ชัด
+37	ข้อความ Notification ใครเป็นผู้อนุมัติ	Business, Legal หรือ Compliance
+38	ข้อความรองรับ Parameter อะไรบ้าง	เช่น policyNo, dueDate, count
+39	ต้อง Mask เลขกรมธรรม์หรือข้อมูลลูกค้าหรือไม่	Security / Privacy
+40	รองรับภาษาไทยและอังกฤษหรือไม่	กำหนด Template Localization
+41	เมื่อข้อความเปลี่ยน ต้อง Deploy Application ใหม่หรือแก้ผ่าน Config ได้	แนะนำให้เป็น Config
+42	ต้องเก็บ Version และ Effective Date ของ Template หรือไม่	รองรับการเปลี่ยนตามประกาศ
+8. e-Policy และการส่งมอบกรมธรรม์
+
+ส่วนนี้ยังไม่ควรทำ Detail Design จนกว่าจะตอบคำถามต่อไปนี้
+
+No.	คำถาม	เหตุผล
+43	e-Policy 100% มีผลตั้งแต่วันที่ใด	ยังรอประกาศหรือข้อสรุป
+44	Process ส่งมอบกรมธรรม์เดิมยังใช้หรือยกเลิก	ในที่ประชุมระบุว่าอาจเปลี่ยน
+45	ลูกค้าต้องยืนยันรับกรมธรรม์ด้วยวิธีใด	OTP, Checkbox, e-Sign หรือไม่ต้องยืนยัน
+46	Agent สามารถดำเนินการแทนลูกค้าได้ในกรณีใด	มีข้อจำกัดจาก Business
+47	หากลูกค้าไม่รับ e-Policy ต้องมีสถานะหรือเหตุผลอะไร	ต้องกำหนด Exception Flow
+48	ต้องเก็บหลักฐานการส่งและรับมอบอะไรบ้าง	Audit และ Regulatory
+49	ขั้นตอน 3.1 และ 3.2 แตกต่างกันอย่างไร	ในที่ประชุมยังเป็นเพียงแนวคิด
+50	ถ้าดำเนินการก่อนส่งมอบแล้วข้อมูลเปลี่ยนภายหลัง ระบบต้องทำอย่างไร	ป้องกันสถานะตกหล่น
+9. Integration และ Ownership
+No.	คำถาม	เหตุผล
+51	ระบบใดเป็นเจ้าของ Policy Due Date	ระบุ Source System
+52	ระบบใดเป็นเจ้าของ Payment Status	ป้องกันแจ้งหลังชำระ
+53	ระบบใดเป็นเจ้าของ Agent Hierarchy	ใช้ระบุผู้รับ
+54	Notification Service เป็นของ R2 เดิมหรือสร้างใหม่	ประเมิน Reuse
+55	เรียก API แบบ Real-time หรือ Batch Query Database	ออกแบบ Integration
+56	ใครเป็น Owner ของ API แต่ละเส้น	ป้องกัน Dependency ไม่ชัด
+57	หาก Source System ส่งข้อมูลช้า Notification ต้องทำอย่างไร	Data Freshness
+58	ต้องรองรับ Event-driven หรือ Scheduled Batch เท่านั้น	มีผลต่อ Architecture
+ข้อสรุปสำหรับการตัดสินใจ
+ออกแบบได้ทันที
+
+เริ่มทำได้เลยในระดับ High-level:
+
+Notification Context Diagram
+Notification Sequence Flow
+Scheduler / Batch Concept
+Notification Config Structure
+Template Structure
+Notification History Concept
+Duplicate Prevention Concept
+Error Handling Concept
+Deep Link Concept
+Dependency Diagram
+ยังไม่ควร Final
+
+ยังไม่ควร Lock รายละเอียดต่อไปนี้:
+
+จำนวนวันที่ใช้ Trigger
+Recipient ที่แน่นอน
+ข้อความ Notification ฉบับ Final
+Policy Status ที่เข้าเงื่อนไข
+Logic รวมหลายกรมธรรม์
+Flow e-Policy Delivery
+Flow ยืนยันการรับมอบ
+Agent สามารถดำเนินการแทนลูกค้าได้หรือไม่
+Scope e-KYC / Red List
+Sprint และ Priority
+ข้อเสนอในมุม SA
+
+สามารถเริ่ม Design โดยกำหนด Assumption ชั่วคราวได้ เช่น
+
+Assumption A1:
+ระบบส่ง Notification วันละครั้ง เวลา 06:00 น.
+
+Assumption A2:
+Notification Condition และข้อความต้องจัดเก็บแบบ Config
+
+Assumption A3:
+***ก่อนส่ง Notification ระบบต้องตรวจสอบสถานะชำระล่าสุดอีกครั้ง
+****จะทำให้ loop เยอะไปหรือไม่ เพราะต้องยิง API ข้ามกันไปมา
+
+Assumption A4:
+ใช้ Policy No. + Notification Type + Trigger Date + Recipient ID
+เป็น Idempotency Key เพื่อป้องกันรายการซ้ำ
+
+Assumption A5:
+e-Policy Delivery และ Regulatory Flow ยังไม่รวมใน Detail Design
+จนกว่าจะได้รับข้อสรุปจาก Business และ Compliance
+
+ดังนั้นคำตอบคือ ข้อมูลพอเริ่มออกแบบโครงสร้างระบบแล้ว แต่ยังไม่พอสำหรับ Final Solution และส่ง Dev โดยไม่ตั้ง Assumption ควรนำคำถามประมาณ 15–20 ข้อที่มีผลต่อ Logic โดยตรงไป Confirm ก่อน ส่วนคำถามรายละเอียดรองสามารถแยกเป็น Pending Question ใน Confluence ได้ครับ
+
+
+
+=================================================
+หัวข้อที่พูดในประชุมวันนี้เป็นหลักคือ:
+
+R3 – e-RYP
+Notification Center
+e-Payment: QR Code, Credit Card, Direct Debit และ DDR
+Payment History / รายการรอตรวจสอบการชำระ
+Backoffice UAM
+Mobile UX/UI
+R3.1 – มาตรการ UW และ eKYC
+
+ดังนั้นสรุปสำหรับ Daily Report ได้ว่า:
+
+วันนี้ไม่มีการหารือในประเด็น Life Planning โดยเนื้อหาการประชุมมุ่งเน้นการ Prioritize Backlog และ Grooming Requirement ของงาน R3 e-RYP และ R3.1 มาตรการ UW สำหรับ Sprint 21 เป็นหลัก
+
+

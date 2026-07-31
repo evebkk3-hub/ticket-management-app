@@ -502,3 +502,133 @@ When architecture or implementation changes materially:
 3. move resolved risks to an ADR/change log rather than silently deleting history;
 4. keep commands and results reproducible;
 5. distinguish facts observed in code from recommendations and pending decisions.
+
+## 13. Downloads Knowledge Base (2026-07-30)
+
+Source reviewed: `C:\Users\lenovo\Downloads`
+
+Detailed coverage and durable domain memory:
+
+- `docs/memory/DOWNLOADS_DOCUMENT_MEMORY.md`
+
+Coverage completed:
+
+- 40 Excel workbooks
+- all 339 Excel worksheets, including 66 hidden sheets
+- approximately 1.02 million non-empty Excel cells scanned
+- approximately 386,046 Excel formula cells scanned
+- 38 PDF documents / 668 pages
+- 7 DOCX documents, including body, tables, headers, footers, notes, and comments where present
+- 1 legacy `.doc` file (Jira HTML export)
+- 1 Draw.io file / 3 diagram pages
+
+Key additions to project memory:
+
+1. Life Planning source chain is Product Specification -> BRD -> calculation model -> screen/API
+   specification. The current-looking calculation sources are model V5.7 and Self Design V1.5,
+   but an approved release/version matrix is still required.
+2. Life Planning includes RP/TP premium design, sum assured, investment return, savings,
+   retirement/annuity, withdrawal, riders, COI/account-value sustainability, occupation caps,
+   projection, and sales illustration.
+3. RYP/APL scope includes Legacy and InsureMO eligibility, realtime premium/interest, QR/Credit
+   Card payment, receipts, Core update, reconciliation, GL, notification, dashboard status, and
+   payment-history/detail views.
+4. Payment result codes are channel-specific. QR/Cheque, Credit Card, and Direct Debit codes must
+   be interpreted with the channel and state machine, not as one shared status code.
+5. TLPro-to-TL Smart migration spans prospect, address, PDPA, quotation/rider, application,
+   insured/beneficiary/guardian, documents, payment, refund, eKYC, and related offer/tracking
+   entities.
+6. UAM uses View/Create/Update/Delete/Approve/Reject across trainee agent, agent, unit, center,
+   region, division, director, and expired-license roles. Multiple current/archive/hidden matrices
+   create policy source-of-truth risk.
+7. The API landscape is broad and version-fragmented. `TLI_Surrounding _API_Spec.xlsx` alone has
+   68 worksheets, including producer/consumer, UW, payment, refund, notification, document,
+   consent, receipt, and collection integrations.
+8. Cached formula error values are concentrated in Life Planning simulation/template sheets.
+   They require controlled Excel recalculation and scenario classification before being treated
+   as implementation defects.
+9. Downloads include production-like identifiers and personal/financial examples. Raw extracted
+   content must remain outside Git; only sanitized summaries and coverage metadata are retained.
+10. `[NASA] BRD - Life Planning LV V.2.4.pdf` and its `(1)` copy are byte-identical.
+
+## 14. TASA Confluence Knowledge Source (2026-07-30)
+
+Source space:
+
+- `TASA` — TLI Agent Super APP
+- Homepage: `https://tlidigitalgroup.atlassian.net/wiki/spaces/TASA/overview?homepageId=64782585`
+- Space ID: `64782341`
+- Detailed memory: `docs/memory/TASA_AGENT_SUPER_APP_MEMORY.md`
+
+Classification:
+
+- TASA is primarily an Agent/Candidate/Career Planning domain source.
+- It is related to the broader TL Smart ecosystem but is not the authoritative source for
+  customer Life Planning V1 actuarial formulas.
+- Career Goal Setting & Sale Simulation must remain a separate bounded context from customer
+  Life Planning, although both can reuse shared UI, calculation, content, audit, and draft
+  infrastructure.
+
+Confirmed first-pass capabilities from `[APP] วางแผนอาชีพ (Goal Setting & Sale Simulation)`:
+
+1. Seven-step candidate career-planning journey: conversation opening, engagement, TLI business
+   strengths, income simulation, career path, agent application, and notes.
+2. Actors are unit, center, region, and division-level agents.
+3. Income simulation supports monthly-income target or sales-target input.
+4. Sales-target inputs include policies per month, commission percentage, and premium per policy.
+5. Results cover first-year monthly income, activity targets, five-year active/passive income,
+   career benefits, and qualification information.
+6. Candidate data is entered from Candidate List/Profile; draft data must be saved and prefilled.
+7. Configurable content includes selected business highlights, awards, benefits, and video content.
+8. ASQ and trainee-agent e-Application are downstream journeys.
+
+Source caution:
+
+- The main Sale Simulation page is version 1.1 and marked `draft`.
+- The exact calculation formulas remain in referenced Google Sheet
+  `Goal and Sale Simulation Model_20240924`; they are not yet represented in this repository.
+- Formula implementation must wait for extraction/version confirmation and Golden Test cases.
+
+## 15. Project Docs Knowledge Base (2026-07-31)
+
+Source reviewed: `C:\Users\lenovo\plantuml-demo\docs`
+
+Detailed sanitized coverage and analysis:
+
+- `docs/memory/DOCS_DOCUMENT_MEMORY.md`
+
+Verified coverage:
+
+- 52 Excel workbooks / all 584 worksheets, including 108 hidden sheets
+- 37 PDFs / all 665 pages
+- 7 DOCX documents plus 1 legacy `.doc`
+- 1 Draw.io file / 3 pages
+- 1 PowerPoint / 16 slides
+- 2 PNG solution diagrams
+- 6 TXT, 2 project Markdown, and 3 PlantUML supporting artifacts
+- no parser errors in the Excel, PDF, or DOCX passes
+
+New durable conclusions:
+
+1. Application/e-Application is an orchestration domain spanning authentication risk checks,
+   insured and beneficiary data, health answers, PDPA, DOPA/eKYC, verified email, documents,
+   signatures, preview, payment, e-Submission, status tracking, and application detail.
+2. Submission requires a server-side completeness policy and explicit recoverable workflow
+   states; screen progress alone must never authorize final submission.
+3. The 105-sheet Life Planning POC API catalog confirms wide integration dependencies across
+   identity, consent, payment/refund, OCR, documents, Core/DIM, UW, correspondence, signatures,
+   counter-offer, family, notification, and cheque. POC sheets are evidence, not production
+   contracts.
+4. OIC e-Policy/Custodian scope targets 1 January 2027 in the reviewed material. TL Smart must
+   support electronic-original policy generation, signing, custodian submission/verification,
+   rejection and resubmission, endorsement, retrieval, retention, and optional paper-copy
+   requests with complete audit evidence.
+5. Rider wording, name mapping, benefit units, and amount formatting are product-versioned
+   business content. Use effective-dated configuration shared by UI, calculations, quotation,
+   application, and policy-document generation.
+6. ASA menu/permission workbooks are versioned across releases and contain historical/hidden
+   variants. One machine-readable authorization source must drive both UI visibility and API
+   enforcement.
+7. The project-doc corpus contains production-like customer and financial examples. Raw files
+   and extracted samples must remain outside commits; Memory retains only sanitized findings
+   and coverage metadata.

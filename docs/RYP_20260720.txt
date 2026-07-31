@@ -1,0 +1,157 @@
+{
+  "status": 1000,
+  "data": {
+    "widget": {
+      "code": "RYP",
+      "title": "ชำระเบี้ยปีต่อ",
+      "icon": "PAYMENT",
+      "asOfDate": "2026-07-17T17:30:00+07:00",
+      "action": {
+        "label": "ทั้งหมด",
+        "method": "GET",
+        "url": "/ms-after/v1/renewal-policy/payment-history",
+        "filterType": "RYP_ALL"
+      },
+      "items": [
+        {
+          "code": "TOTAL_DUE_POLICY",
+          "value": 24,
+          "label": "ครบกำหนดชำระเบี้ย",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_DUE",
+          "sequence": 1,
+          "disabled": false
+        },
+        {
+          "code": "CONDITIONAL_PERIOD",
+          "value": 10,
+          "label": "อยู่ในระยะเวลาเงื่อนไข",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_GRACE_PERIOD",
+          "sequence": 2,
+          "disabled": false
+        },
+        {
+          "code": "NEAR_END_CONDITION",
+          "value": 4,
+          "label": "ใกล้สิ้นสุดเวลาเงื่อนไข",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_NEAR_END_GRACE",
+          "sequence": 3,
+          "disabled": false
+        },
+        {
+          "code": "OVER_CONDITION_PERIOD",
+          "value": 3,
+          "label": "เกินระยะเวลาเงื่อนไข",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_OVER_GRACE",
+          "sequence": 4,
+          "disabled": false
+        },
+        {
+          "code": "PENDING_PAYMENT_REVIEW",
+          "value": 10,
+          "label": "รอตรวจสอบการชำระเบี้ย",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_VERIFY_PAYMENT",
+          "sequence": 5,
+          "disabled": false
+        },
+        {
+          "code": "AUTO_DEBIT_FAILED",
+          "value": 2,
+          "label": "หักอัตโนมัติไม่สำเร็จ",
+          "method": "GET",
+          "url": "/ms-after/v1/renewal-policy/payment-history",
+          "filterType": "RYP_AUTO_DEBIT_FAIL",
+          "sequence": 6,
+          "disabled": false
+        }
+      ]
+    }
+  }
+}
+
+
+
+@[SA] Supachai H. (P'Eve)
+
+
+Morning Talk 
+
+- Conduct RYP grooming session with the Development Team.
+- Revise RYP [R3][S20] flows and design diagrams in Confluence.
+- Daily work summary meeting.
+
+
+ATS 06,07 Card Authent & UAM & Nav
+
+
+
+
+
+
+
+Life Planning List > Lead Detail > Case: ไม่มีข้อมูล
+
+
+
+Requirement ที่ยังไม่ชัด
+
+Business ยังไม่ตอบคำถามเหล่านี้
+
+ถ้ากรมธรรม์เดียวกันมีหลาย Payment Transaction ต้องแสดงอย่างไร?
+ถ้าชำระหลายช่องทาง (QR, Credit Card, Cheque) ต้องเลือก Transaction ไหนมาแสดง?
+ถ้ามี Transaction ที่ยัง Pending อยู่ แต่กรมธรรม์ชำระสำเร็จแล้ว ต้องเช็กย้อนหลังหรือไม่?
+หน้าประวัติการชำระต้องแสดงเพียงรายการเดียวหรือหลายรายการ?
+ระยะเวลาที่ต้องตรวจสอบย้อนหลังคือเท่าไร?
+Source of Truth ของ Payment Success คืออะไร?
+
+Open Issues ที่ SA ควรจดไว้
+ผมแนะนำให้จดแบบนี้ใน Meeting
+No	Open Issue	Owner
+1	กรมธรรม์เดียวมีหลาย Transaction แสดงอย่างไร	Business
+2	Source of Truth ของ Payment Success	Business
+3	ต้องตรวจย้อนหลังกี่วัน	Business
+4	ต้องเช็กทุก Transaction หรือเฉพาะล่าสุด	Business
+5	Historical Transaction ต้องแสดงหรือไม่	Business
+6	Multi Payment Channel รองรับหรือไม่	Business / Core Team
+
+เรื่อง Open Issues
+จาก Transcript ผมจะสรุป Open Issues ได้ประมาณนี้
+No	Open Issue
+1	Payment Status Source of Truth คืออะไร
+2	ต้องเก็บทุก Transaction หรือไม่
+3	Payment History แสดงระดับใด
+4	Installment เดียวกันกดชำระหลายครั้งทำอย่างไร
+5	Multi Payment Channel รองรับหรือไม่
+6	Check Payment Status ก่อนจ่ายทุกครั้งหรือไม่
+7	API Response "00" แปลว่าอะไร
+8	Key ที่ใช้ Check Payment คืออะไร
+9	Transaction ที่ Pending ต้องเก็บหรือไม่
+10	Query Strategy ของ Payment History เป็นอย่างไร
+
+
+SLL_625 - ปรับ Wording ลายน้ำใน PDF
+หลายคนจะถามแค่ว่า "เปลี่ยนข้อความเป็นอะไร"
+แต่ในมุม SA ผมจะถามเพิ่มดังนี้
+Business
+เปลี่ยนเฉพาะภาษาไทยหรือภาษาอังกฤษด้วยหรือไม่?
+มีผลกับทุก Product หรือเฉพาะ Life Planning?
+Effective Date เมื่อไร?
+ต้องการย้อนหลังกับเอกสารที่ Generate ไปแล้วหรือไม่?
+Functional
+เปลี่ยนเฉพาะ Watermark หรือ Header/Footer ด้วย?
+เปลี่ยนเฉพาะหน้า Summary หรือทุกหน้าใน PDF?
+มี PDF Template กี่ Template?
+Technical
+PDF Generate จาก Service ไหน?
+มีหลาย Platform หรือไม่ (TL Smart / IMO)?
+ใช้ PDF Template เดียวกันหรือหลาย Template?
+Config ข้อความได้หรือ Hardcode?

@@ -1,0 +1,147 @@
+
+
+
+Notification ที่ส่งแล้วต้องเก็บใน Notification Center กี่วัน (Expire หรือไม่)
+
+
+หาก User เปิด Notification หลังจาก Condition ผ่านไปแล้ว ยังต้องสามารถดูรายการกรมธรรม์เดิมได้หรือไม่
+** เช่น จำเป็นต้องใส่ตัวเลขด้านนอกกับด้านใน application ให้ตรงกันหรือไม่
+
+
+หากกรมธรรม์ถูกชำระเงินแล้ว ต้องแสดง Notification เดิมหรือซ่อนออกจาก Notification Center
+กรมธรรม์เดียวกันสามารถได้รับ Notification หลายครั้งตามแต่ละ Milestone ได้หรือไม่ (30 วัน → 3 วัน → Today → Grace Period)
+เมื่อกด Notification ต้องการ Deep Link ไปที่
+Payment History List ตาม Condition ปัจจุบัน
+Payment History List ของข้อมูล ณ วันที่ส่ง Notification
+หรือ Payment History Detail ของกรมธรรม์โดยตรง
+
+ถ้าไม่ได้ Define เรื่องเหล่านี้ไว้ตั้งแต่ Design Phase จะมีปัญหาเรื่องข้อมูลไม่ตรงกับ Notification ที่ผู้ใช้ได้รับแน่นอน โดยเฉพาะกรณีที่ผู้ใช้ไม่ได้เข้าใช้งานแอปทุกวันหรือเข้ามาดู Notification ย้อนหลังหลายวัน.
+
+Recipient	Source Agent	Level			Count
+Agent C		Agent C			OWNER			3
+Agent B		Agent C			DIRECT_	PARENT	3
+Manager A	Agent C			MANAGER			3
+
+โครงสร้าง DB Payment History List ต้องรองรับ SELF, DIRECT_TEAM และ ALL_TEAM ด้วย
+
+**owner_agent_id หรือ sales_id ตัวแทนเจ้าของกรมธรรม์
+***คำนวณจาก Agent Hierarchy
+
+ข้อสรุปสำหรับใส่ใน Design
+
+Payment History List ต้องรองรับการค้นหาข้อมูลตามขอบเขต SELF, DIRECT_TEAM และ ALL_TEAM โดยอาศัยเจ้าของกรมธรรม์และข้อมูล Agent Hierarchy แต่ไม่ควรจัดเก็บ View Scope ไว้ในตาราง Payment History โดยตรง
+
+ตาราง Payment History ต้องมีฟิลด์ที่สามารถระบุ Agent Owner ของกรมธรรม์ได้ และ Backend ต้อง Join กับ Agent Hierarchy เพื่อกำหนดรายการที่ผู้ใช้งานมีสิทธิ์มองเห็น
+
+ดังนั้นคำตอบคือ ต้องรองรับแน่นอนใน Data Model และ Query Design แต่สิ่งที่ต้องเพิ่มใน Payment History คือ owner_agent_id/sales_id ไม่ใช่เพิ่มคอลัมน์ SELF, DIRECT_TEAM, ALL_TEAM ครับ
+
+
+สิ่งที่ React ทำไม่ได้เอง
+
+React ไม่ควรเป็นผู้ตรวจพบว่า payment ถูก Reject โดยการ Poll ตลอดเวลา เพราะ:
+
+	- แอปอาจถูกปิด
+	- สิ้นเปลืองทรัพยากร
+	- Notification อาจล่าช้า
+	- ควบคุมการส่งซ้ำยาก
+	- ไม่รองรับผู้รับตาม Hierarchy อย่างถูกต้อง
+
+การ Trigger ต้องอยู่ฝั่ง Backend เช่น:
+
+Payment Callback / Event
+→ Kafka หรือ Message Queue
+→ Notification Service
+→ FCM/APNs
+ข้อสรุปสำหรับ Design
+
+NASA_RYP_009 สามารถทำด้วย React Native ได้ โดยให้ React Native รับ Push และ Deep Link ไปยัง Payment History Detail 
+*****แต่เงื่อนไข Realtime****, การเลือกผู้รับ, Agent Hierarchy, การป้องกันส่งซ้ำ และการบันทึก Notification ต้องทำที่ Backend
+
+แนะนำปรับ Link to page เป็น:
+
+เมื่อผู้ใช้กด Notification ให้เข้าสู่หน้ารายละเอียดการชำระเบี้ย โดยอ้างอิง paymentHistoryId หรือ collectionId และตรวจสอบสิทธิ์ล่าสุดก่อนแสดงข้อมูล
+
+และปรับ Send to ไม่ให้ยึดกับ “user ที่ log in” ครับ
+
+
+ODD คือ recuring แบบหนึง
+ประเภท	ความหมาย
+Recurring	ระบบหักบัญชี/บัตรเครดิตอัตโนมัติทุกงวดตามรอบที่กำหนด
+ODD (One Day Debit)	ระบบจะหักอัตโนมัติในวันที่กำหนดเพียงครั้งเดียวของงวดนั้น
+Auto Debit	คำเรียกรวมของการหักเงินอัตโนมัติ
+Credit Card Recurring	หักผ่านบัตรเครดิตแบบต่อเนื่อง
+Bank Account Recurring	หักผ่านบัญชีธนาคารแบบต่อเนื่อง
+
+
+****ให้ทีมที่อ๋อย เรียก API TL Smart และ TL SMart ส่ง Notification ทันทีในเส้น API ไม่ใช่แบบ Trigger*****
+TL Smart จะเป็นผู้ส่ง Notification ทันทีหลังจากได้รับผลลัพธ์จาก API (Real-time Notification) โดยไม่ใช้การ Trigger จาก Batch Job, Scheduler หรือ Event Trigger
+Notification Flow
+1. Team P'Aoy' calls TL Smart API.
+2. TL Smart processes the request and sends the Notification immediately within the same API flow.
+3. Notification must be sent in real-time (synchronous process).
+4. No Scheduler, Batch Job, or Event Trigger mechanism is required.
+
+
+
+Result (SA Role)
+
+สรุปและจัดลำดับความสำคัญ (Prioritize) ของ Product Backlog สำหรับงาน R3 (e-RYP) และ R3.1 (UW Measure) เพื่อกำหนด Scope งานที่ต้องดำเนินการใน Sprint 21 ร่วมกับ PO และ BU Owner
+ทำ Grooming Requirement กับทีม DIS โดยวิเคราะห์ Business Requirement ของแต่ละ Feature ครอบคลุม Notification Center, e-Payment, Direct Debit (DDR), Payment History และ eKYC พร้อมทำความเข้าใจ Business Flow, System Flow และผลกระทบต่อการพัฒนาระบบ
+Review และระบุ Dependency ที่ต้องติดตามเพิ่มเติม ได้แก่ API Specification, Data Source จากระบบต้นทาง, Batch Timing, Notification Trigger Logic และ UX/UI Requirement เพื่อเตรียมความพร้อมด้าน Solution Design และส่งมอบ Requirement ที่ครบถ้วนให้ทีมพัฒนาและทดสอบดำเนินงานต่อได้อย่างถูกต้องและทันตามแผน Sprint.
+
+e-RYP
+
+ทีมพี่อ๋อยจะเป็นผู้เรียก API ของ TL Smart และเมื่อ TL Smart รับ Request แล้ว ระบบจะสร้างและส่ง Notification ให้ผู้ใช้งานทันทีภายใน API Flow โดยไม่ใช้รูปแบบ Trigger หรือ Batch จาก Notification Center ภายหลัง
+
+Questions / Concerns ที่ยังต้อง Confirm
+API Endpoint, Request/Response และ Mandatory Parameter เช่น salesId, policyNo, dueDate และประเภท Notification
+กรณีเรียก API ไม่สำเร็จ ต้องมี Retry, Timeout, Error Handling หรือเก็บรายการเพื่อ Reprocess หรือไม่?
+ต้องยืนยัน Duplicate Prevention หรือ Idempotency เพื่อป้องกันการส่ง Notification ซ้ำ? ออกแบบการเก็บข้อมูลลง DB
+Response จาก TL Smart ต้องยืนยันเพียงการรับ Request หรือยืนยันว่า Notification ถูกส่งสำเร็จแล้ว? ออกแบบการเก็บข้อมูลลง DB
+กำหนด Notification Message, Deep Link และเงื่อนไขผู้รับสำหรับแต่ละกรณี เช่น ครบกำหนดชำระและตัดชำระไม่สำเร็จ
+**** พอดีได้ยินคุณเอกแจ้งให้เรียก API อย่างเดียวแต่ไม่เก็บ log หรือไม่
+
+ความพร้อมในการออกแบบระบบ
+
+สามารถเริ่มออกแบบ High-Level Flow และ Sequence Diagram ได้แล้ว โดยกำหนด Flow เป็น:
+
+ทีมพี่อ๋อย → เรียก TL Smart Notification API → TL Smart ตรวจสอบข้อมูล → บันทึก/ส่ง Notification ทันที → ส่งผลลัพธ์กลับ
+
+ส่วน Detail Design จะสมบูรณ์เมื่อได้รับ API Specification, Error Handling, Retry และ Duplicate Handling ที่ยืนยันแล้ว.
+
+
+
+
+
+Questions ที่ต้อง Confirm กับ BA/BU
+ลูกค้าสามารถเลือกรับทั้ง e-Policy และกระดาษพร้อมกันได้หรือไม่
+ที่อยู่จัดส่งใช้ application_address หรือสามารถระบุที่อยู่อื่นเฉพาะการส่งกรมธรรม์ได้
+e-Policy ถือว่าส่งมอบสำเร็จเมื่อส่งอีเมลสำเร็จ เปิดอีเมล หรือกดยืนยันรับ
+กรมธรรม์กระดาษต้องมี ****Tracking Number และ Proof of Delivery หรือไม่?****
+ใครสามารถรับแทนลูกค้าได้ และต้องเก็บชื่อ/ความสัมพันธ์หรือไม่
+ลูกค้าปฏิเสธรับกรมธรรม์ได้ผ่านช่องทางใด
+การปฏิเสธรับกรมธรรม์ทำให้กรมธรรม์ Cancel ทันที หรือส่งต่อ Workflow อื่น
+ต้องรองรับ Re-send/Re-delivery ได้กี่ครั้ง
+ต้องเก็บเอกสารหรือหลักฐานการรับ/ปฏิเสธไว้นานเท่าใด
+Notification ให้ Agent/Customer เกิดขึ้นที่สถานะใดบ้าง
+SA Conclusion
+
+ยังไม่ควรสรุปว่าฐานข้อมูลปัจจุบันรองรับกระบวนการทั้งหมดแล้ว
+
+โครงสร้างปัจจุบันรองรับ:
+
+	*การเลือก PAPER หรือ NONPAPER
+	**การเก็บอีเมลและที่อยู่ติดต่อ
+	***การสร้างและส่งเอกสารระหว่างระบบบางส่วน
+	****ประวัติการถูกปฏิเสธรับประกันจากบริษัทประกัน
+	*****ประวัติการถูกปฏิเสธรับประกันจากบริษัทประกัน
+
+แต่ยังขาด:
+
+1. Policy Delivery Transaction
+2. Delivery Status Lifecycle
+3. Tracking และ Proof of Delivery
+4. e-Policy Delivery/Acknowledgement Status
+5. Customer Rejection of Policy
+6. Re-delivery และ Delivery History
+7. Re-delivery และ Delivery History

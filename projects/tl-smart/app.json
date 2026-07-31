@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "TL Smart",
+    "slug": "tl-smart",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

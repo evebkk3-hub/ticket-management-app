@@ -5,5 +5,7 @@ data/
 **/node_modules/
 **/.expo/
 **/dist*/
+.expo-cache/
+.npm-cache/
 quarantine/
 tmp/

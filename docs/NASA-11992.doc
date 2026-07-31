@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>[#NASA-11992] แก้ไขใบเสนอขาย EN64,EN65,W023</title>
+    <meta http-equiv="Content-Type" Content="application/vnd.ms-word; charset=UTF-8">
+        <style type="text/css">
+
+.tableBorder, .grid
+{
+    background-color: #fff;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tableBorder td, .grid td
+{
+    vertical-align: top;
+    padding: 2px;
+    border: 1px solid #ccc;
+}
+
+.noPadding
+{
+    padding: 0 !important;
+}
+
+h3 .subText
+{
+    font-size: 60%;
+    font-weight: normal;
+}
+
+.tabLabel
+{
+    font-weight: bold;
+    border: 1px solid #ccc;
+    border-bottom:none;
+    padding: 2px;
+    display: inline;
+}
+
+td.blank
+{
+    padding: 0;
+    margin: 0;
+}
+
+.blank td
+{
+    border: none;
+}
+
+#descriptionArea
+{
+    margin: 0;
+    padding: 2px;
+    border: 1px solid #ccc;
+}
+
+hr
+{
+    border-top:1px solid #aaa;
+}
+
+hr.fullcontent
+{
+  height: 15px;
+  padding: 10px 0;
+  background: #fff url('https://tlidigitalgroup.atlassian.net/images/icons/hr.gif') no-repeat scroll center;
+}
+
+</style>
+
+</head>
+<body>
+
+<table class="tableBorder" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+        <td bgcolor="#f0f0f0" width="100%" colspan="2" valign="top">
+                            <b><a id="parent_issue_summary" href="https://tlidigitalgroup.atlassian.net/browse/NASA-6">Quotation</a></b>
+                <span style="font-size: 9px">(<a id="parent_issue_key" href="https://tlidigitalgroup.atlassian.net/browse/NASA-6">NASA-6</a>)</span>
+                <h3 class="formtitle"><img src="https://tlidigitalgroup.atlassian.net/images/icons/link_out_bot.gif" width="16" height="16" />
+                        [NASA-11992]&nbsp;<a href="https://tlidigitalgroup.atlassian.net/browse/NASA-11992">แก้ไขใบเสนอขาย EN64,EN65,W023</a>
+            <span class="subText">
+               Created: 30/Jun/26                   &nbsp;Updated: 22/Jul/26
+
+                                            </span>
+            </h3>
+        </td>
+    </tr>
+    <tr>
+        <td width="20%"><b>Status:</b></td>
+        <td width="80%">READY FOR GROOM DEV</td>
+    </tr>
+    <tr>
+        <td width="20%"><b>Project:</b></td>
+        <td width="80%"><a href="https://tlidigitalgroup.atlassian.net/secure/BrowseProject.jspa?id=11494">TLI NASA</a></td>
+    </tr>
+
+        <tr>
+            <td><b>Components:</b></td>
+            <td>
+                            None
+                </td>
+    </tr>
+    
+
+        <tr>
+            <td><b>Affects versions:</b></td>
+            <td>
+                            None
+                </td>
+    </tr>
+    
+
+        <tr>
+            <td><b>Fix versions:</b></td>
+            <td>
+                            None
+                </td>
+    </tr>
+    
+    
+            <td width="20%"><b>Parent:</b></td>
+        <td width="80%"><a href="https://tlidigitalgroup.atlassian.net/browse/NASA-6">Quotation</a></td>
+    </table>
+
+<br />
+<table class="grid" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+        <td bgcolor="#f0f0f0" valign="top" width="20%">
+            <b>Type:</b>
+        </td>
+        <td bgcolor="#ffffff" valign="top"  width="30%" >
+            DIS Backlog
+        </td>
+
+                    <td bgcolor="#f0f0f0">
+                <b>Priority:</b>
+            </td>
+            <td bgcolor="#ffffff" valign="top" nowrap>
+                Medium
+            </td>
+            </tr>
+    <tr>
+                        <td bgcolor="#f0f0f0" valign="top" width="20%">
+                <b>Reporter:</b>
+            </td>
+            <td bgcolor="#ffffff" valign="top"  width="30%" >
+                                        
+                
+        
+            <a class="user-hover" rel="5e743b84980acf0c2c3505cf"
+                id="word_reporter_5e743b84980acf0c2c3505cf"
+                href="https://tlidigitalgroup.atlassian.net/secure/ViewProfile.jspa?accountId=5e743b84980acf0c2c3505cf">
+                    Kritsada Boonlarp
+                </a>
+
+                            </td>
+        
+                    <td bgcolor="#f0f0f0" width="20%">
+                <b>Assignee:</b>
+            </td>
+            <td bgcolor="#ffffff" valign="top" nowrap  width="30%" >
+                                        
+                
+        
+            <a class="user-hover" rel="712020:d42787dc-9b08-4259-aa58-7f5fb957a2f6"
+                id="word_assignee_712020:d42787dc-9b08-4259-aa58-7f5fb957a2f6"
+                href="https://tlidigitalgroup.atlassian.net/secure/ViewProfile.jspa?accountId=712020%3Ad42787dc-9b08-4259-aa58-7f5fb957a2f6">
+                    Pakaporn Ongartwutthiwong
+                </a>
+
+                            </td>
+            </tr>
+    	<tr>
+		<td bgcolor="#f0f0f0" width="20%">
+			<b>Resolution:</b>
+		</td>
+		<td bgcolor="#ffffff" valign="top" width="30%" nowrap>
+            				Unresolved
+                    </td>
+                    <td bgcolor="#f0f0f0" width="20%">
+                <b>Votes:</b>
+            </td>
+            <td bgcolor="#ffffff" valign="top" width="30%" nowrap>
+                0
+            </td>
+        
+    </tr>
+    
+        <tr>
+        <td bgcolor="#f0f0f0" width="20%">
+            <b>Labels:</b>
+        </td>
+        <td id="labels-1263987-value" class="value" bgcolor="#ffffff" valign="top" colspan="3" nowrap>
+                            None
+                    </td>
+    </tr>
+    
+    	<tr>
+        		<td bgcolor="#f0f0f0" width="20%"><b>Remaining Estimate:</b></td>
+        <td bgcolor="#ffffff" valign="top" nowrap width="80%" colspan="3">
+                            Not Specified
+            		</td>
+    </tr>
+    <tr>
+                <td bgcolor="#f0f0f0" width="20%"><b>Time Spent:</b></td>
+		<td bgcolor="#ffffff" valign="top" nowrap width="80%" colspan="3">
+                            Not Specified
+            		</td>
+	</tr>
+    <tr>
+                <td bgcolor="#f0f0f0" width="20%"><b>Original estimate:</b></td>
+		<td bgcolor="#ffffff" valign="top" nowrap width="80%" colspan="3">
+                            Not Specified
+            		</td>
+    </tr>
+    
+    </table>
+
+
+
+    <br />
+
+    	<table class="grid" cellpadding="0" cellspacing="0" border="0" width="100%">
+            
+
+                <tr>
+            <td bgcolor="#f0f0f0" width=20% valign=top>
+                <b>Attachments:</b>
+            </td>
+            <td bgcolor="#ffffff" valign="top">
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.52.12.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.51.49.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.52.54.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.54.34.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.53.16.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.54.03.png &nbsp;&nbsp;&nbsp;
+                                    <img src="https://tlidigitalgroup.atlassian.net/images/icons/attach/image.gif" height="16" width="16" border="0" alt="PNG File">
+                    Screenshot 2569-07-09 at 13.54.42.png &nbsp;&nbsp;&nbsp;
+                            </td>
+        </tr>
+        
+    
+
+
+    
+                        <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>BA Owner:</b></td>
+                <td id="customfield_12721-1263987-value" class="value" bgcolor="#ffffff" width="80%">    Pakaporn Ongartwutthiwong
+</td>
+            </tr>
+                                <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>Rank:</b></td>
+                <td id="customfield_10019-1263987-value" class="value" bgcolor="#ffffff" width="80%">      0|zzcyde:
+  </td>
+            </tr>
+                                <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>Running No.:</b></td>
+                <td id="customfield_12782-1263987-value" class="value" bgcolor="#ffffff" width="80%">      SLL_615
+  </td>
+            </tr>
+                                <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>Level 1:</b></td>
+                <td id="customfield_12712-1263987-value" class="value" bgcolor="#ffffff" width="80%">    Quotation
+</td>
+            </tr>
+                                <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>BA owner:</b></td>
+                <td id="customfield_12780-1263987-value" class="value" bgcolor="#ffffff" width="80%"><div class="shorten" id="customfield_12780-field">
+                        <span class="tinylink">        <span class="user-hover" rel="b547c331-136b-4bfe-ab6e-633d20461b18" id="multiuser_cf_b547c331-136b-4bfe-ab6e-633d20461b18">Pakaporn Ongartwutthiwong</span></span>            </div>
+</td>
+            </tr>
+                                <tr>
+                <td bgcolor="#f0f0f0" width="20%" valign="top"><b>Sprint:</b></td>
+                <td id="customfield_10020-1263987-value" class="value" bgcolor="#ffffff" width="80%">NASA DIS-20/DEL-19</td>
+            </tr>
+            </table>
+
+    <br/>
+
+    <table cellpadding="2" cellspacing="0" border="0" width="100%" align="center">
+    <tr>
+        <td bgcolor="#bbbbbb" width="1%" nowrap align="center">
+            &nbsp;<font color="#ffffff"><b>Description</b></font>&nbsp;
+        </td>
+        <td>&nbsp;</td>
+    </tr>
+    </table>
+
+    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr>
+        <td id="descriptionArea">
+            <p>CR : <a href="https://tliidp.sharepoint.com/:x:/r/sites/TeamITProject-2566_NASAImplementation/Shared%20Documents/91_Change%20Request%20or%20New%20Backlog/%5BNASA-CR-076%5D%E0%B9%81%E0%B8%81%E0%B9%89%E0%B9%84%E0%B8%82%E0%B9%83%E0%B8%9A%E0%B9%80%E0%B8%AA%E0%B8%99%E0%B8%AD%E0%B8%82%E0%B8%B2%E0%B8%A2%20EN64,EN65,W023.xlsx?d=wbf29f203ca6a4a379a296587658907be&amp;csf=1&amp;web=1&amp;e=NWzdT6" title="smart-link" class="external-link" rel="nofollow noreferrer">https://tliidp.sharepoint.com/:x:/r/sites/TeamITProject-2566_NASAImplementation/Shared%20Documents/91_Change%20Request%20or%20New%20Backlog/%5BNASA-CR-076%5D%E0%B9%81%E0%B8%81%E0%B9%89%E0%B9%84%E0%B8%82%E0%B9%83%E0%B8%9A%E0%B9%80%E0%B8%AA%E0%B8%99%E0%B8%AD%E0%B8%82%E0%B8%B2%E0%B8%A2%20EN64,EN65,W023.xlsx?d=wbf29f203ca6a4a379a296587658907be&amp;csf=1&amp;web=1&amp;e=NWzdT6</a></p>
+
+
+<p>EN65</p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220969" alt="Screenshot 2569-07-09 at 13.52.54.png" width="442" style="border: 0px solid black" /></span></p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220971" alt="Screenshot 2569-07-09 at 13.53.16.png" width="442" style="border: 0px solid black" /></span></p>
+
+
+
+<p>EN64</p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220968" alt="Screenshot 2569-07-09 at 13.51.49.png" width="450" style="border: 0px solid black" /></span></p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220967" alt="Screenshot 2569-07-09 at 13.52.12.png" width="450" style="border: 0px solid black" /></span></p>
+
+<p>W023</p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220972" alt="Screenshot 2569-07-09 at 13.54.03.png" width="450" style="border: 0px solid black" /></span></p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220970" alt="Screenshot 2569-07-09 at 13.54.34.png" width="450" style="border: 0px solid black" /></span></p>
+
+<p><span class="image-wrap" style=""><img src="https://tlidigitalgroup.atlassian.net/rest/api/3/attachment/content/220973" alt="Screenshot 2569-07-09 at 13.54.42.png" width="450" style="border: 0px solid black" /></span></p>
+
+
+            <br/>
+        </td>
+    </tr>
+    </table>
+
+Generated at Wed Jul 22 03:21:50 UTC 2026 by Banharn Swangwarn using Jira 1001.0.0-SNAPSHOT#100292-rev:f6b6eead949dbe0e9c4be63fb2c0832e34686933.
+
+</body>
+</html>
