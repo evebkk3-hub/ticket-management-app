@@ -30,6 +30,10 @@ import {
   submitApplication,
   validateApplication,
 } from "./src/domain/application";
+import {
+  availablePaymentChannels,
+  nextPaymentState,
+} from "./src/domain/paymentRequirements";
 
 const emptyLead = {
   firstName: "",
@@ -171,8 +175,11 @@ export default function App() {
           <TopBar wide={wide} />
           {!wide && (
             <View style={styles.mobileModules}>
-              <Pressable onPress={() => setScreen("list")} style={[styles.mobileModule, screen !== "career" && styles.mobileModuleActive]}>
-                <Text style={[styles.mobileModuleText, screen !== "career" && styles.mobileModuleTextActive]}>ผู้มุ่งหวัง</Text>
+              <Pressable onPress={() => setScreen("list")} style={[styles.mobileModule, (screen === "list" || screen === "create") && styles.mobileModuleActive]}>
+                <Text style={[styles.mobileModuleText, (screen === "list" || screen === "create") && styles.mobileModuleTextActive]}>ผู้มุ่งหวัง</Text>
+              </Pressable>
+              <Pressable onPress={() => setScreen("quotations")} style={[styles.mobileModule, screen === "quotations" && styles.mobileModuleActive]}>
+                <Text style={[styles.mobileModuleText, screen === "quotations" && styles.mobileModuleTextActive]}>ใบเสนอขาย</Text>
               </Pressable>
               <Pressable onPress={() => setScreen("career")} style={[styles.mobileModule, screen === "career" && styles.mobileModuleActive]}>
                 <Text style={[styles.mobileModuleText, screen === "career" && styles.mobileModuleTextActive]}>วางแผนอาชีพ</Text>
@@ -180,10 +187,17 @@ export default function App() {
               <Pressable onPress={() => setScreen("applications")} style={[styles.mobileModule, screen === "applications" && styles.mobileModuleActive]}>
                 <Text style={[styles.mobileModuleText, screen === "applications" && styles.mobileModuleTextActive]}>ใบคำขอ</Text>
               </Pressable>
+              <Pressable onPress={() => setScreen("payments")} style={[styles.mobileModule, screen === "payments" && styles.mobileModuleActive]}>
+                <Text style={[styles.mobileModuleText, screen === "payments" && styles.mobileModuleTextActive]}>ชำระเงิน</Text>
+              </Pressable>
             </View>
           )}
           {screen === "applications" ? (
             <Applications />
+          ) : screen === "payments" ? (
+            <PaymentCenter />
+          ) : screen === "quotations" ? (
+            <QuotationManagement onCreateApplication={() => setScreen("applications")} />
           ) : screen === "career" ? (
             <CareerPlanning />
           ) : screen === "list" ? (
@@ -231,8 +245,9 @@ function Sidebar({ onCreate, screen, onNavigate }) {
       <Text style={styles.menuLabel}>เมนูหลัก</Text>
       <NavItem icon="⌂" label="ภาพรวม" />
       <NavItem icon="♙" label="ผู้มุ่งหวัง" active={screen === "list" || screen === "create"} onPress={() => onNavigate("list")} />
-      <NavItem icon="▤" label="ใบเสนอขาย" />
+      <NavItem icon="▤" label="ใบเสนอขาย" active={screen === "quotations"} onPress={() => onNavigate("quotations")} />
       <NavItem icon="◫" label="ใบคำขอ" active={screen === "applications"} onPress={() => onNavigate("applications")} />
+      <NavItem icon="฿" label="ชำระเงิน" active={screen === "payments"} onPress={() => onNavigate("payments")} />
       <Text style={[styles.menuLabel, { marginTop: 20 }]}>AGENT SUPER APP</Text>
       <NavItem icon="◎" label="วางแผนอาชีพ" active={screen === "career"} onPress={() => onNavigate("career")} />
       <Pressable style={styles.quickCreate} onPress={onCreate}>
@@ -262,6 +277,196 @@ function TopBar({ wide }) {
       <View style={styles.environment}><View style={styles.onlineDot} /><Text style={styles.environmentText}>Demo environment</Text></View>
       <View style={styles.topAvatar}><Text style={styles.topAvatarText}>ศภ</Text></View>
     </View>
+  );
+}
+
+const quotationSeed = [
+  { id: "QT-2026-000184", customer: "พิมพ์ชนก วัฒนา", product: "ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90", premium: 50000, sumAssured: 1000000, status: "ฉบับร่าง", updatedAt: "วันนี้ 09:41" },
+  { id: "QT-2026-000173", customer: "ธนกฤต ชัยพร", product: "ตลอดชีพ 99/20", premium: 42000, sumAssured: 800000, status: "อนุมัติแล้ว", updatedAt: "เมื่อวาน 16:20" },
+  { id: "QT-PA-2026-000031", customer: "ศิริพร แสงทอง", product: "พี.เอ. ไมโคร ฮอสพิทอล ชีลด์ [TX2]", premium: 2400, sumAssured: 300000, status: "พร้อมสร้าง E-App PA", updatedAt: "วันนี้ 10:03" },
+];
+
+function QuotationManagement({ onCreateApplication }) {
+  const [quotations, setQuotations] = useState(quotationSeed);
+  const [view, setView] = useState("list");
+  const [selectedId, setSelectedId] = useState(quotationSeed[0].id);
+  const [draft, setDraft] = useState({
+    customer: "พิมพ์ชนก วัฒนา",
+    product: "ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90",
+    premium: "50000",
+    sumAssured: "1000000",
+    paymentMode: "รายปี",
+  });
+  const selected = quotations.find((item) => item.id === selectedId);
+
+  function saveQuotation() {
+    const id = selected?.id || `QT-2026-${String(185 + quotations.length).padStart(6, "0")}`;
+    const record = {
+      id,
+      customer: draft.customer.trim(),
+      product: draft.product.trim(),
+      premium: Number(draft.premium || 0),
+      sumAssured: Number(draft.sumAssured || 0),
+      status: "ฉบับร่าง",
+      updatedAt: "เมื่อสักครู่",
+    };
+    setQuotations((items) => [record, ...items.filter((item) => item.id !== id)]);
+    setSelectedId(id);
+    setView("detail");
+  }
+
+  if (view === "form") {
+    return (
+      <ScrollView contentContainerStyle={styles.content}>
+        <Pressable onPress={() => setView("list")}><Text style={styles.back}>‹ กลับไปรายการใบเสนอขาย</Text></Pressable>
+        <View style={styles.headingRow}>
+          <View><Text style={styles.eyebrow}>QUOTATION</Text><Text style={styles.title}>สร้างใบเสนอขาย</Text><Text style={styles.subtitle}>จัดทำข้อเสนอเบื้องต้นก่อนสร้างใบคำขอ</Text></View>
+        </View>
+        <View style={styles.formCard}>
+          <View style={styles.formGrid}>
+            <Field label="ผู้มุ่งหวัง/ลูกค้า *" value={draft.customer} onChangeText={(customer) => setDraft({ ...draft, customer })} />
+            <Field label="แบบประกัน *" value={draft.product} onChangeText={(product) => setDraft({ ...draft, product })} />
+            <Field label="ทุนประกัน (บาท) *" keyboardType="number-pad" value={draft.sumAssured} onChangeText={(sumAssured) => setDraft({ ...draft, sumAssured: sumAssured.replace(/\D/g, "") })} />
+            <Field label="เบี้ยประกันภัย (บาท) *" keyboardType="number-pad" value={draft.premium} onChangeText={(premium) => setDraft({ ...draft, premium: premium.replace(/\D/g, "") })} />
+            <Field label="งวดชำระเบี้ย *" value={draft.paymentMode} onChangeText={(paymentMode) => setDraft({ ...draft, paymentMode })} />
+          </View>
+          <View style={styles.formActions}>
+            <Pressable style={styles.cancelButton} onPress={() => setView("list")}><Text style={styles.cancelText}>ยกเลิก</Text></Pressable>
+            <Pressable style={styles.primaryButton} onPress={saveQuotation}><Text style={styles.primaryButtonText}>บันทึกใบเสนอขาย</Text></Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  if (view === "detail" && selected) {
+    return (
+      <ScrollView contentContainerStyle={styles.content}>
+        <Pressable onPress={() => setView("list")}><Text style={styles.back}>‹ กลับไปรายการใบเสนอขาย</Text></Pressable>
+        <View style={styles.headingRow}>
+          <View><Text style={styles.eyebrow}>QUOTATION DETAIL</Text><Text style={styles.title}>{selected.id}</Text><Text style={styles.subtitle}>{selected.customer} · {selected.product}</Text></View>
+          <Text style={styles.statusPill}>{selected.status}</Text>
+        </View>
+        <View style={styles.quotationSummaryGrid}>
+          <Metric value={formatMoney(selected.sumAssured)} label="ทุนประกัน" tone="blue" />
+          <Metric value={formatMoney(selected.premium)} label="เบี้ยประกันภัย" tone="green" />
+          <Metric value={selected.updatedAt} label="แก้ไขล่าสุด" tone="amber" />
+        </View>
+        <View style={styles.formCard}>
+          <Text style={styles.sectionTitle}>ดำเนินการต่อ</Text>
+          <Text style={styles.subtitle}>ตรวจสอบข้อมูลก่อนสร้างใบคำขอ ระบบจะใช้เลขใบเสนอขายนี้เป็นข้อมูลอ้างอิง</Text>
+          <View style={styles.formActions}>
+            <Pressable style={styles.cancelButton} onPress={() => setView("form")}><Text style={styles.cancelText}>แก้ไขใบเสนอขาย</Text></Pressable>
+            <Pressable style={styles.applicationNextButton} onPress={onCreateApplication}><Text style={styles.applicationNextButtonText}>สร้างใบคำขอ ›</Text></Pressable>
+          </View>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.headingRow}>
+        <View><Text style={styles.eyebrow}>QUOTATION MANAGEMENT</Text><Text style={styles.title}>ใบเสนอขาย</Text><Text style={styles.subtitle}>สร้าง ตรวจสอบ และส่งต่อใบเสนอขายไปยังใบคำขอ</Text></View>
+        <Pressable style={styles.primaryButton} onPress={() => { setSelectedId(null); setView("form"); }}><Text style={styles.primaryButtonText}>＋ สร้างใบเสนอขาย</Text></Pressable>
+      </View>
+      <View style={styles.card}>
+        {quotations.map((quotation) => (
+          <Pressable key={quotation.id} style={styles.quotationRow} onPress={() => { setSelectedId(quotation.id); setDraft({ customer: quotation.customer, product: quotation.product, premium: String(quotation.premium), sumAssured: String(quotation.sumAssured), paymentMode: "รายปี" }); setView("detail"); }}>
+            <View style={styles.quotationIcon}><Text style={styles.quotationIconText}>QT</Text></View>
+            <View style={styles.flex}><Text style={styles.leadName}>{quotation.customer}</Text><Text style={styles.leadMeta}>{quotation.id} · {quotation.product}</Text><Text style={styles.leadMeta}>ทุน {formatMoney(quotation.sumAssured)} · เบี้ย {formatMoney(quotation.premium)}</Text></View>
+            <Text style={styles.statusPill}>{quotation.status}</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+const paymentChannelLabels = {
+  QR_CODE: "โมบายแบงก์กิ้ง (QR Code)",
+  CREDIT_CARD: "บัตรเครดิต",
+  CHEQUE: "เช็ค",
+  DIRECT_DEBIT: "หักบัญชีธนาคาร (Direct Debit)",
+};
+
+const paymentStatusLabels = {
+  WAITING_PAYMENT: "รอชำระเบี้ย",
+  PAYMENT_PENDING: "รอผลการชำระเบี้ย",
+  WAITING_VERIFICATION: "รอตรวจสอบการชำระเบี้ย",
+  VERIFYING_PAYMENT: "กำลังตรวจสอบการชำระเบี้ย",
+  PAYMENT_SUCCESS: "ชำระเบี้ยสำเร็จ",
+};
+
+function PaymentCenter() {
+  const [hasTopUp, setHasTopUp] = useState(false);
+  const [isForeigner, setIsForeigner] = useState(false);
+  const [channel, setChannel] = useState("QR_CODE");
+  const [status, setStatus] = useState("WAITING_PAYMENT");
+  const [evidenceAttached, setEvidenceAttached] = useState(false);
+  const channels = availablePaymentChannels({ hasTopUp, isForeigner });
+
+  function updateScenario(patch) {
+    const nextTopUp = patch.hasTopUp ?? hasTopUp;
+    const nextForeigner = patch.isForeigner ?? isForeigner;
+    setHasTopUp(nextTopUp);
+    setIsForeigner(nextForeigner);
+    const allowed = availablePaymentChannels({ hasTopUp: nextTopUp, isForeigner: nextForeigner });
+    if (!allowed.includes(channel)) setChannel(allowed[0]);
+  }
+
+  function transition(event) {
+    setStatus((current) => nextPaymentState(current, event));
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.headingRow}>
+        <View><Text style={styles.eyebrow}>PAYMENT V11</Text><Text style={styles.title}>ชำระเงิน</Text><Text style={styles.subtitle}>เลือกช่องทาง ตรวจสอบสถานะ แนบหลักฐาน และติดตามใบรับเงินชั่วคราว</Text></View>
+        <Text style={styles.statusPill}>{paymentStatusLabels[status]}</Text>
+      </View>
+
+      <View style={styles.paymentWorkspace}>
+        <View style={styles.paymentMainCard}>
+          <Text style={styles.sectionTitle}>เลือกช่องทางการชำระเบี้ย</Text>
+          <View style={styles.scenarioRow}>
+            <Pressable style={[styles.scenarioChip, hasTopUp && styles.scenarioChipActive]} onPress={() => updateScenario({ hasTopUp: !hasTopUp })}><Text style={styles.scenarioChipText}>เบี้ย Top-up {hasTopUp ? "✓" : ""}</Text></Pressable>
+            <Pressable style={[styles.scenarioChip, isForeigner && styles.scenarioChipActive]} onPress={() => updateScenario({ isForeigner: !isForeigner })}><Text style={styles.scenarioChipText}>ลูกค้าชาวต่างชาติ {isForeigner ? "✓" : ""}</Text></Pressable>
+          </View>
+          {hasTopUp && <Text style={styles.paymentRuleNote}>Top-up ไม่รับชำระผ่านบัตรเครดิตตาม Payment V11 SP12</Text>}
+          {isForeigner && <Text style={styles.paymentRuleNote}>ลูกค้าชาวต่างชาติไม่รองรับ Direct Debit ตาม Payment V11</Text>}
+          <View style={styles.channelGrid}>
+            {Object.entries(paymentChannelLabels).map(([value, label]) => {
+              const enabled = channels.includes(value);
+              return (
+                <Pressable key={value} disabled={!enabled} style={[styles.channelCard, channel === value && styles.channelCardActive, !enabled && styles.channelCardDisabled]} onPress={() => setChannel(value)}>
+                  <Text style={styles.channelSymbol}>{value === "QR_CODE" ? "▦" : value === "CREDIT_CARD" ? "▭" : value === "CHEQUE" ? "⌁" : "⇄"}</Text>
+                  <Text style={[styles.channelLabel, channel === value && styles.channelLabelActive]}>{label}</Text>
+                  {!enabled && <Text style={styles.channelUnavailable}>ไม่สามารถเลือกได้</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.formActions}>
+            <Pressable style={styles.applicationNextButton} onPress={() => transition("START_PAYMENT")}><Text style={styles.applicationNextButtonText}>ดำเนินการชำระเงิน ›</Text></Pressable>
+          </View>
+        </View>
+
+        <View style={styles.paymentSideCard}>
+          <Text style={styles.sectionTitle}>รายการชำระ</Text>
+          <Text style={styles.infoLabel}>เลขที่ใบคำขอ</Text><Text style={styles.infoValue}>APP-2026-001582</Text>
+          <Text style={styles.infoLabel}>ผู้ขอเอาประกัน</Text><Text style={styles.infoValue}>พิมพ์ชนก วัฒนา</Text>
+          <Text style={styles.infoLabel}>ยอดชำระ</Text><Text style={styles.paymentAmount}>{formatMoney(50000)}</Text>
+          <Text style={styles.infoLabel}>ช่องทาง</Text><Text style={styles.infoValue}>{paymentChannelLabels[channel]}</Text>
+          <View style={styles.infoDivider} />
+          <Pressable style={styles.paymentAction} onPress={() => transition("CONFIRMED")}><Text style={styles.paymentActionText}>ตรวจสอบ: ชำระสำเร็จ</Text></Pressable>
+          <Pressable style={styles.paymentAction} onPress={() => transition("NO_RESULT")}><Text style={styles.paymentActionText}>ตรวจสอบ: ไม่ได้รับผล</Text></Pressable>
+          <Pressable style={styles.paymentAction} onPress={() => { setEvidenceAttached(true); transition("ATTACH_EVIDENCE"); }}><Text style={styles.paymentActionText}>{evidenceAttached ? "✓ แนบหลักฐานแล้ว" : "＋ แนบหลักฐานชำระเบี้ย"}</Text></Pressable>
+          {status === "PAYMENT_SUCCESS" && <View style={styles.eTrBox}><Text style={styles.eTrTitle}>E-TR พร้อมออก</Text><Text style={styles.eTrText}>ส่งใบรับเงินชั่วคราว ใบเสนอขาย และใบคำขอทางอีเมล</Text></View>}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -516,6 +721,18 @@ function Applications() {
     }
   }
 
+  function openPaApplication() {
+    setApplication({
+      ...applicationSeed,
+      quotationNo: "QT-PA-2026-000031",
+      productName: "พี.เอ. ไมโคร ฮอสพิทอล ชีลด์ [TX2]",
+      applicationType: "PA",
+      premium: 2400,
+    });
+    setActiveStep(0);
+    setView("form");
+  }
+
   function requestDopaCheckedAction(action) {
     if (activeStep === 1 && application.payerGuardian.payer.dopaStatus === "UNAVAILABLE") {
       const transition = evaluateDopaFailureAttempt(dopaAttemptCount, action);
@@ -583,6 +800,12 @@ function Applications() {
             <Text style={[styles.statusPill, { color: "#376d9e", backgroundColor: "#eaf3fb" }]}>กำลังพิจารณา</Text>
             <Text style={styles.chevron}>›</Text>
           </View>
+          <Pressable style={styles.applicationRow} onPress={openPaApplication}>
+            <View style={[styles.applicationIcon, { backgroundColor: "#fff0df" }]}><Text style={[styles.applicationIconText, { color: "#ad671c" }]}>PA</Text></View>
+            <View style={styles.flex}><Text style={styles.leadName}>ศิริพร แสงทอง</Text><Text style={styles.leadMeta}>E-App PA · QT-PA-2026-000031</Text><Text style={styles.leadMeta}>พี.เอ. ไมโคร ฮอสพิทอล ชีลด์ [TX2]</Text></View>
+            <Text style={[styles.statusPill, { color: "#93601d", backgroundColor: "#fff2df" }]}>กำลังดำเนินการ</Text>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </View>
       </ScrollView>
     );
@@ -1397,6 +1620,32 @@ const styles = StyleSheet.create({
   beneficiaryCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   beneficiaryCardTitle: { color: "#40484d", fontSize: 15, fontWeight: "800" },
   removeBeneficiaryText: { color: "#c44d43", fontSize: 10, fontWeight: "800" },
+  quotationRow: { flexDirection: "row", alignItems: "center", gap: 14, padding: 18, borderBottomWidth: 1, borderBottomColor: "#edf0ef" },
+  quotationIcon: { width: 46, height: 46, borderRadius: 12, backgroundColor: "#e7f4fb", alignItems: "center", justifyContent: "center" },
+  quotationIconText: { color: "#0789cf", fontWeight: "900" },
+  quotationSummaryGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 18 },
+  paymentWorkspace: { flexDirection: "row", alignItems: "flex-start", flexWrap: "wrap", gap: 18 },
+  paymentMainCard: { flex: 1.5, minWidth: 360, backgroundColor: "white", borderColor: "#e0e6e9", borderWidth: 1, borderRadius: 10, padding: 24 },
+  paymentSideCard: { flex: 0.7, minWidth: 280, backgroundColor: "white", borderColor: "#e0e6e9", borderWidth: 1, borderRadius: 10, padding: 22 },
+  scenarioRow: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 12 },
+  scenarioChip: { borderColor: "#ccd7dc", borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 7 },
+  scenarioChipActive: { borderColor: "#0789cf", backgroundColor: "#eaf6fc" },
+  scenarioChipText: { color: "#4d626d", fontSize: 10, fontWeight: "800" },
+  paymentRuleNote: { color: "#91651d", backgroundColor: "#fff6e4", borderRadius: 6, padding: 9, fontSize: 10, marginBottom: 8 },
+  channelGrid: { flexDirection: "row", flexWrap: "wrap", gap: 11, marginTop: 10 },
+  channelCard: { flexGrow: 1, flexBasis: "45%", minWidth: 185, borderColor: "#d5dfe4", borderWidth: 1, borderRadius: 9, padding: 17 },
+  channelCardActive: { borderColor: "#0789cf", backgroundColor: "#eef8fd" },
+  channelCardDisabled: { opacity: 0.38, backgroundColor: "#f1f2f3" },
+  channelSymbol: { color: "#0789cf", fontSize: 23, fontWeight: "800" },
+  channelLabel: { color: "#4b585f", fontSize: 12, fontWeight: "800", marginTop: 8 },
+  channelLabelActive: { color: "#087bb8" },
+  channelUnavailable: { color: "#9c5d54", fontSize: 9, marginTop: 5 },
+  paymentAmount: { color: "#087253", fontSize: 23, fontWeight: "900", marginTop: 4 },
+  paymentAction: { borderColor: "#d7e1e5", borderWidth: 1, borderRadius: 7, padding: 11, marginTop: 9 },
+  paymentActionText: { color: "#28708f", fontSize: 11, fontWeight: "800" },
+  eTrBox: { backgroundColor: "#e9f7f0", borderRadius: 8, padding: 13, marginTop: 15 },
+  eTrTitle: { color: "#087253", fontSize: 12, fontWeight: "900" },
+  eTrText: { color: "#517068", fontSize: 9, lineHeight: 15, marginTop: 4 },
   formCard: { backgroundColor: "white", borderColor: "#e1e7e4", borderWidth: 1, borderRadius: 15, padding: 22 },
   sectionTitle: { color: "#15372c", fontSize: 19, fontWeight: "800", marginBottom: 20 },
   formGrid: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
