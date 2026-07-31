@@ -34,6 +34,10 @@ import {
   availablePaymentChannels,
   nextPaymentState,
 } from "./src/domain/paymentRequirements";
+import {
+  needsBlacklistWarning,
+  normalizeAgentBlacklistResponse,
+} from "./src/domain/agentBlacklist";
 
 const emptyLead = {
   firstName: "",
@@ -58,6 +62,13 @@ export default function App() {
   const [customer, setCustomer] = useState(null);
   const [selectedPolicy, setSelectedPolicy] = useState(0);
   const [notice, setNotice] = useState("");
+  const [agentAccess, setAgentAccess] = useState(() =>
+    normalizeAgentBlacklistResponse({
+      ok: true,
+      redLevel: false,
+      blacklisted: false,
+    }),
+  );
 
   const filteredLeads = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -173,6 +184,10 @@ export default function App() {
         )}
         <View style={styles.main}>
           <TopBar wide={wide} />
+          <AgentBlacklistBanner
+            result={agentAccess}
+            onScenarioChange={setAgentAccess}
+          />
           {!wide && (
             <View style={styles.mobileModules}>
               <Pressable onPress={() => setScreen("list")} style={[styles.mobileModule, (screen === "list" || screen === "create") && styles.mobileModuleActive]}>
@@ -232,6 +247,92 @@ export default function App() {
         </View>
       </View>
     </SafeAreaView>
+  );
+}
+
+function AgentBlacklistBanner({ result, onScenarioChange }) {
+  const [visible, setVisible] = useState(false);
+  const listed = needsBlacklistWarning(result);
+  const statusLabel = result.degraded
+    ? "Agent Status API ไม่พร้อมใช้งาน — ใช้สิทธิ์ Normal ชั่วคราว"
+    : result.status === "RED_BLACK"
+      ? "พบ Red Level และ Blacklist"
+      : result.status === "RED"
+        ? "พบ Red Level"
+        : result.status === "BLACK"
+          ? "พบ Blacklist"
+          : "ตรวจสอบสิทธิ์ตัวแทนแล้ว: Normal";
+
+  const scenarios = [
+    ["Normal", { ok: true }],
+    ["Red Level", { ok: true, redLevel: true }],
+    ["Blacklist", { ok: true, blacklisted: true }],
+    ["Red + Black", { ok: true, redLevel: true, blacklisted: true }],
+    ["API Down", { ok: false }],
+  ];
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`สถานะตัวแทน ${statusLabel}`}
+        onPress={() => setVisible(true)}
+        style={[
+          styles.agentStatusBanner,
+          listed && styles.agentStatusWarning,
+          result.degraded && styles.agentStatusDegraded,
+        ]}
+      >
+        <Text style={styles.agentStatusIcon}>{listed ? "!" : result.degraded ? "↻" : "✓"}</Text>
+        <View style={styles.agentStatusBody}>
+          <Text style={styles.agentStatusTitle}>{statusLabel}</Text>
+          <Text style={styles.agentStatusText}>
+            {listed
+              ? "สามารถเข้าสู่ระบบได้ กรุณาตรวจสอบรายละเอียดก่อนดำเนินงานขาย"
+              : result.degraded
+                ? "ระบบไม่ปิดกั้น Login หรือ Sales Process และจะตรวจสอบใหม่ภายหลัง"
+                : "สิทธิ์ได้รับการตรวจสอบเมื่อเข้าสู่ระบบ"}
+          </Text>
+        </View>
+        <Text style={styles.agentStatusLink}>ดูรายละเอียด ›</Text>
+      </Pressable>
+
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.agentStatusModal}>
+            <View style={[styles.agentStatusModalIcon, listed && styles.agentStatusModalIconWarning]}>
+              <Text style={styles.agentStatusModalIconText}>{listed ? "!" : "✓"}</Text>
+            </View>
+            <Text style={styles.agentStatusModalTitle}>สถานะสิทธิ์การขายของตัวแทน</Text>
+            <Text style={styles.agentStatusModalStatus}>{statusLabel}</Text>
+            <Text style={styles.agentStatusModalText}>
+              Red/Black Level เป็นข้อมูลแจ้งเตือน ส่วนสิทธิ์เข้าใช้งานแต่ละ Feature ยึด UAM เป็นแหล่งข้อมูลหลัก
+              หาก Agent Status API ขัดข้อง ระบบต้อง Default เป็น Normal และไม่ Block Sales Process
+            </Text>
+            <View style={styles.agentStatusFacts}>
+              <Text style={styles.agentStatusFact}>รหัสตัวแทน: AG-10001</Text>
+              <Text style={styles.agentStatusFact}>ตรวจสอบเมื่อ: Login ครั้งล่าสุด</Text>
+              <Text style={styles.agentStatusFact}>แหล่งข้อมูล: {result.source}</Text>
+            </View>
+            <Text style={styles.agentStatusDemoLabel}>จำลองผลตอบกลับสำหรับ MVP</Text>
+            <View style={styles.agentStatusScenarios}>
+              {scenarios.map(([label, response]) => (
+                <Pressable
+                  key={label}
+                  style={styles.agentStatusScenario}
+                  onPress={() => onScenarioChange(normalizeAgentBlacklistResponse(response))}
+                >
+                  <Text style={styles.agentStatusScenarioText}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Pressable style={styles.primaryButtonFull} onPress={() => setVisible(false)}>
+              <Text style={styles.primaryButtonText}>ตกลง</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -1512,6 +1613,27 @@ const styles = StyleSheet.create({
   environmentText: { color: "#718078", fontSize: 12 },
   topAvatar: { width: 34, height: 34, backgroundColor: "#e7f2ee", borderRadius: 17, alignItems: "center", justifyContent: "center" },
   topAvatarText: { color: "#07533f", fontWeight: "800", fontSize: 12 },
+  agentStatusBanner: { minHeight: 58, backgroundColor: "#edf8f4", borderBottomColor: "#cfe9df", borderBottomWidth: 1, paddingHorizontal: 26, paddingVertical: 10, flexDirection: "row", alignItems: "center", gap: 12 },
+  agentStatusWarning: { backgroundColor: "#fff6df", borderBottomColor: "#ecd58e" },
+  agentStatusDegraded: { backgroundColor: "#eef5fa", borderBottomColor: "#cfdee8" },
+  agentStatusIcon: { width: 26, height: 26, borderRadius: 13, textAlign: "center", textAlignVertical: "center", backgroundColor: "white", color: "#087253", fontWeight: "900", fontSize: 15 },
+  agentStatusBody: { flex: 1 },
+  agentStatusTitle: { color: "#294b40", fontSize: 12, fontWeight: "900" },
+  agentStatusText: { color: "#657970", fontSize: 10, marginTop: 2 },
+  agentStatusLink: { color: "#0789cf", fontSize: 11, fontWeight: "900" },
+  agentStatusModal: { width: "100%", maxWidth: 560, backgroundColor: "white", borderRadius: 14, padding: 28, alignItems: "center" },
+  agentStatusModalIcon: { width: 46, height: 46, borderRadius: 23, backgroundColor: "#e8f7f0", borderColor: "#16a477", borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  agentStatusModalIconWarning: { backgroundColor: "#fff7df", borderColor: "#e5a616" },
+  agentStatusModalIconText: { color: "#087253", fontSize: 24, fontWeight: "900" },
+  agentStatusModalTitle: { color: "#263f36", fontSize: 22, fontWeight: "900", marginTop: 16, textAlign: "center" },
+  agentStatusModalStatus: { color: "#8a6318", fontSize: 14, fontWeight: "900", marginTop: 8 },
+  agentStatusModalText: { color: "#64756e", fontSize: 12, lineHeight: 20, textAlign: "center", marginTop: 12 },
+  agentStatusFacts: { width: "100%", backgroundColor: "#f4f7f6", borderRadius: 9, padding: 14, marginTop: 17, gap: 6 },
+  agentStatusFact: { color: "#52665e", fontSize: 11 },
+  agentStatusDemoLabel: { color: "#87958f", fontSize: 10, fontWeight: "800", marginTop: 17, alignSelf: "flex-start" },
+  agentStatusScenarios: { width: "100%", flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 8 },
+  agentStatusScenario: { borderWidth: 1, borderColor: "#cedbd6", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 7 },
+  agentStatusScenarioText: { color: "#426158", fontSize: 10, fontWeight: "800" },
   mobileModules: { flexDirection: "row", gap: 7, padding: 8, backgroundColor: "white", borderBottomWidth: 1, borderBottomColor: "#e4e9e7" },
   mobileModule: { flex: 1, borderRadius: 8, padding: 9, alignItems: "center" },
   mobileModuleActive: { backgroundColor: "#e5f5ef" },
