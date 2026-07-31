@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   Alert,
+  Modal,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -25,6 +26,7 @@ import {
 import {
   APPLICATION_STEPS,
   completionByStep,
+  evaluateDopaFailureAttempt,
   submitApplication,
   validateApplication,
 } from "./src/domain/application";
@@ -384,15 +386,103 @@ const applicationSeed = {
   productName: "ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90",
   premium: 50000,
   insured: {
+    prefix: "นางสาว",
     firstName: "พิมพ์ชนก",
     lastName: "วัฒนา",
+    gender: "หญิง",
+    birthDate: "12 มิ.ย. 2533",
+    age: "36 ปี",
+    identityType: "บัตรประจำตัวประชาชน",
     nationalId: "1103700123456",
+    height: "165",
+    weight: "52",
+    nationality: "ไทย",
     mobile: "0891234567",
+    email: "pimchanok@example.com",
+    hasFormerName: false,
+    formerFirstName: "",
+    formerLastName: "",
+    maritalStatus: "โสด",
+    spousePrefix: "",
+    spouseFirstName: "",
+    spouseLastName: "",
+    additionalHealth: "ไม่มี / สุขภาพแข็งแรง",
+    additionalHealthDetail: "",
+    selectedAddressType: "ทะเบียนบ้าน",
+    addresses: {
+      "ทะเบียนบ้าน": { houseNo: "99/9", villageNo: "4", village: "", building: "", floor: "", room: "", alley: "", soi: "สุขุมวิท 24", road: "สุขุมวิท", subdistrict: "คลองตัน", district: "คลองเตย", province: "กรุงเทพมหานคร", postalCode: "10110", homePhone: "" },
+      "ปัจจุบัน": { houseNo: "99/9", villageNo: "4", village: "", building: "", floor: "", room: "", alley: "", soi: "สุขุมวิท 24", road: "สุขุมวิท", subdistrict: "คลองตัน", district: "คลองเตย", province: "กรุงเทพมหานคร", postalCode: "10110", homePhone: "" },
+      "ที่ทำงาน": { houseNo: "123", villageNo: "", village: "", building: "อาคารไทยประกันชีวิต", floor: "18", room: "", alley: "", soi: "รัชดาภิเษก 18", road: "รัชดาภิเษก", subdistrict: "ห้วยขวาง", district: "ห้วยขวาง", province: "กรุงเทพมหานคร", postalCode: "10310", homePhone: "022470247" },
+      "สถานที่ติดต่อ": { houseNo: "99/9", villageNo: "4", village: "", building: "", floor: "", room: "", alley: "", soi: "สุขุมวิท 24", road: "สุขุมวิท", subdistrict: "คลองตัน", district: "คลองเตย", province: "กรุงเทพมหานคร", postalCode: "10110", homePhone: "" },
+    },
+    occupation: "พนักงานบริษัท",
+    jobDescription: "บริหารโครงการระบบสารสนเทศ",
+    position: "ผู้จัดการโครงการ",
+    annualIncome: "1200000",
+    businessType: "เทคโนโลยีสารสนเทศ",
+    dopaStatus: "UNAVAILABLE",
+    dopaMessageCode: "MSG_0025",
   },
-  beneficiaries: [{ firstName: "", relation: "คู่สมรส", share: 100 }],
+  payerGuardian: {
+    planName: "ทีแอล ยูนิเวอร์แซลไลฟ์ 90/90",
+    premiumMode: "รายปี",
+    sumAssured: 1000000,
+    payer: {
+      type: "บุคคลธรรมดา (ชาวไทย)",
+      relation: "ผู้ขอเอาประกัน",
+      prefix: "นางสาว",
+      firstName: "พิมพ์ชนก",
+      lastName: "วัฒนา",
+      birthDate: "12 มิ.ย. 2533",
+      gender: "หญิง",
+      nationalId: "1103700123456",
+      mobile: "0891234567",
+      dopaStatus: "UNAVAILABLE",
+    },
+    guardianRequired: true,
+    guardian: {
+      relation: "บิดา",
+      prefix: "นาย",
+      firstName: "ภูรเนศ",
+      lastName: "รุ่งปัญญากิจพัฒน์",
+      gender: "ชาย",
+      nationalId: "1234567890121",
+      birthDate: "15 มี.ค. 2503",
+    },
+  },
+  beneficiaries: [{
+    type: "บุคคล",
+    prefix: "นาย",
+    firstName: "ธนกฤต",
+    lastName: "วัฒนา",
+    gender: "ชาย",
+    birthDate: "10 ม.ค. 2531",
+    age: "38",
+    relation: "คู่สมรส",
+    nationalId: "1103700123999",
+    sumAssuredShare: 100,
+    accountValueShare: 100,
+    addressType: "ตามที่อยู่ปัจจุบัน",
+  }],
   health: { answered: false, hasCondition: false },
   documents: { identityCard: false, addressDocument: false },
-  signature: { insured: false, agent: false },
+  signature: {
+    insured: false,
+    agent: false,
+    purpose: "บริษัท ไทยประกันชีวิต จำกัด (มหาชน)",
+    guardianRelation: "บิดา",
+    guardianGender: "ชาย",
+    guardianPrefix: "นาย",
+    guardianFirstName: "ภูรเนศ",
+    guardianLastName: "รุ่งปัญญากิจพัฒน์",
+    guardianBirthDate: "15 มี.ค. 2503",
+    guardianDocumentType: "บัตรประชาชน",
+    guardianNationalId: "1234567890121",
+    guardianNationality: "ไทย",
+    witnessPrefix: "นาย",
+    witnessFirstName: "พีรณย์",
+    witnessLastName: "ใจว่องกิจวัฒนา",
+  },
   payment: { method: "" },
 };
 
@@ -401,6 +491,10 @@ function Applications() {
   const [activeStep, setActiveStep] = useState(0);
   const [application, setApplication] = useState(applicationSeed);
   const [submitResult, setSubmitResult] = useState(null);
+  const [dopaModalVisible, setDopaModalVisible] = useState(false);
+  const [dopaPendingAction, setDopaPendingAction] = useState(null);
+  const [dopaAttemptCount, setDopaAttemptCount] = useState(0);
+  const [applicationToast, setApplicationToast] = useState("");
   const completion = completionByStep(application);
   const validation = validateApplication(application);
   const completedCount = completion.filter((item) => item.complete).length;
@@ -419,6 +513,37 @@ function Applications() {
     if (result.ok) {
       Alert.alert("ส่งใบคำขอแล้ว", `เลขที่ ${result.applicationNo}`);
       setView("list");
+    }
+  }
+
+  function requestDopaCheckedAction(action) {
+    if (activeStep === 1 && application.payerGuardian.payer.dopaStatus === "UNAVAILABLE") {
+      const transition = evaluateDopaFailureAttempt(dopaAttemptCount, action);
+      setDopaAttemptCount(transition.nextAttemptCount);
+      if (transition.showModal) {
+        setDopaPendingAction(transition.pendingAction);
+        setDopaModalVisible(true);
+        return;
+      }
+    }
+    if (action === "save") {
+      setApplicationToast("บันทึกข้อมูลสำเร็จ");
+      return;
+    }
+    setApplicationToast("");
+    setActiveStep((current) => Math.min(APPLICATION_STEPS.length - 1, current + 1));
+  }
+
+  function acknowledgeDopaFailure() {
+    const action = dopaPendingAction;
+    setDopaModalVisible(false);
+    setDopaPendingAction(null);
+    if (action === "save") {
+      setApplicationToast("บันทึกข้อมูลสำเร็จ");
+      return;
+    }
+    if (action === "next") {
+      setActiveStep((current) => Math.min(APPLICATION_STEPS.length - 1, current + 1));
     }
   }
 
@@ -447,8 +572,8 @@ function Applications() {
               <Text style={styles.leadMeta}>{application.productName}</Text>
             </View>
             <View style={styles.applicationProgress}>
-              <Text style={styles.statusPill}>{completedCount}/6 ขั้นตอน</Text>
-              <View style={styles.miniTrack}><View style={[styles.miniBar, { width: `${(completedCount / 6) * 100}%` }]} /></View>
+              <Text style={styles.statusPill}>{completedCount}/{APPLICATION_STEPS.length} ขั้นตอน</Text>
+              <View style={styles.miniTrack}><View style={[styles.miniBar, { width: `${(completedCount / APPLICATION_STEPS.length) * 100}%` }]} /></View>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
@@ -465,6 +590,19 @@ function Applications() {
 
   return (
     <ScrollView contentContainerStyle={styles.applicationContent}>
+      {applicationToast && <View style={styles.applicationToast}><Text style={styles.applicationToastText}>✓ {applicationToast}</Text></View>}
+      <Modal transparent animationType="fade" visible={dopaModalVisible} onRequestClose={() => {}}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.dopaModal}>
+            <View style={styles.dopaModalIcon}><Text style={styles.dopaModalIconText}>!</Text></View>
+            <Text style={styles.dopaModalTitle}>ไม่สามารถดำเนินการต่อได้</Text>
+            <Text style={styles.dopaModalMessage}>ระบบไม่สามารถเชื่อมต่อกับฐานข้อมูล{"\n"}กรมการปกครอง (DOPA) ได้{"\n"}กรุณาดำเนินการใหม่อีกครั้ง</Text>
+            <Pressable style={styles.dopaModalButton} onPress={acknowledgeDopaFailure}>
+              <Text style={styles.dopaModalButtonText}>ตกลง</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
       <Pressable onPress={() => setView("list")}><Text style={styles.back}>‹ กลับไปรายการใบคำขอ</Text></Pressable>
       <View style={styles.headingRow}>
         <View><Text style={styles.eyebrow}>APPLICATION DRAFT</Text><Text style={styles.title}>ใบคำขอของพิมพ์ชนก วัฒนา</Text><Text style={styles.subtitle}>{application.quotationNo} · {application.productName}</Text></View>
@@ -490,14 +628,15 @@ function Applications() {
           />
           <View style={styles.formActions}>
             {activeStep > 0 && <Pressable style={styles.cancelButton} onPress={() => setActiveStep(activeStep - 1)}><Text style={styles.cancelText}>ย้อนกลับ</Text></Pressable>}
+            <Pressable style={styles.saveOutlineButton} onPress={() => requestDopaCheckedAction("save")}><Text style={styles.saveOutlineButtonText}>บันทึกข้อมูล</Text></Pressable>
             {activeStep < APPLICATION_STEPS.length - 1
-              ? <Pressable style={styles.primaryButton} onPress={() => setActiveStep(activeStep + 1)}><Text style={styles.primaryButtonText}>บันทึกและถัดไป</Text></Pressable>
+              ? <Pressable style={styles.applicationNextButton} onPress={() => requestDopaCheckedAction("next")}><Text style={styles.applicationNextButtonText}>ถัดไป  ›</Text></Pressable>
               : <Pressable style={styles.primaryButton} onPress={submit}><Text style={styles.primaryButtonText}>ตรวจสอบและส่งใบคำขอ</Text></Pressable>}
           </View>
         </View>
         <View style={styles.applicationSummary}>
           <Text style={styles.sectionTitle}>ความพร้อมของใบคำขอ</Text>
-          <View style={styles.readinessScore}><Text style={styles.readinessValue}>{Math.round((completedCount / 6) * 100)}%</Text><Text style={styles.readinessLabel}>{completedCount} จาก 6 ขั้นตอน</Text></View>
+          <View style={styles.readinessScore}><Text style={styles.readinessValue}>{Math.round((completedCount / APPLICATION_STEPS.length) * 100)}%</Text><Text style={styles.readinessLabel}>{completedCount} จาก {APPLICATION_STEPS.length} ขั้นตอน</Text></View>
           {completion.map((item) => <View key={item.key} style={styles.checkRow}><Text style={[styles.checkIcon, item.complete && styles.checkIconComplete]}>{item.complete ? "✓" : "○"}</Text><Text style={styles.checkLabel}>{item.label}</Text></View>)}
           {!validation.valid && <View style={styles.missingBox}><Text style={styles.missingTitle}>ข้อมูลที่ยังไม่ครบ</Text>{validation.missing.slice(0, 4).map((item) => <Text key={item} style={styles.missingItem}>• {item}</Text>)}</View>}
           {submitResult && !submitResult.ok && <Text style={styles.error}>กรุณาระบุข้อมูลให้ครบก่อนส่งใบคำขอ</Text>}
@@ -509,21 +648,373 @@ function Applications() {
 }
 
 function ApplicationStep({ index, application, update, setApplication }) {
+  function updateAddress(patch) {
+    setApplication((current) => {
+      const type = current.insured.selectedAddressType;
+      return {
+        ...current,
+        insured: {
+          ...current.insured,
+          addresses: {
+            ...current.insured.addresses,
+            [type]: { ...current.insured.addresses[type], ...patch },
+          },
+        },
+      };
+    });
+  }
+
+  function updateBeneficiary(index, patch) {
+    setApplication((current) => ({
+      ...current,
+      beneficiaries: current.beneficiaries.map((item, itemIndex) => (
+        itemIndex === index ? { ...item, ...patch } : item
+      )),
+    }));
+  }
+
+  function addBeneficiary() {
+    setApplication((current) => {
+      if (current.beneficiaries.length >= 10) return current;
+      return {
+        ...current,
+        beneficiaries: [...current.beneficiaries, {
+          type: "บุคคล",
+          prefix: "",
+          firstName: "",
+          lastName: "",
+          gender: "",
+          birthDate: "",
+          age: "",
+          relation: "",
+          nationalId: "",
+          sumAssuredShare: 0,
+          accountValueShare: 0,
+          addressType: "ตามที่อยู่ทะเบียนบ้าน",
+        }],
+      };
+    });
+  }
+
+  function removeBeneficiary(index) {
+    setApplication((current) => (
+      current.beneficiaries.length === 1
+        ? current
+        : { ...current, beneficiaries: current.beneficiaries.filter((_, itemIndex) => itemIndex !== index) }
+    ));
+  }
+
   if (index === 0) {
-    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 1</Text><Text style={styles.sectionTitle}>ข้อมูลผู้เอาประกัน</Text><View style={styles.formGrid}><Field label="ชื่อ *" value={application.insured.firstName} onChangeText={(firstName) => update("insured", { firstName })} /><Field label="นามสกุล *" value={application.insured.lastName} onChangeText={(lastName) => update("insured", { lastName })} /><Field label="เลขประจำตัวประชาชน *" maxLength={13} keyboardType="number-pad" value={application.insured.nationalId} onChangeText={(nationalId) => update("insured", { nationalId: nationalId.replace(/\D/g, "") })} /><Field label="เบอร์โทรศัพท์มือถือ *" maxLength={10} keyboardType="phone-pad" value={application.insured.mobile} onChangeText={(mobile) => update("insured", { mobile: mobile.replace(/\D/g, "") })} /></View></View>;
+    const insured = application.insured;
+    const address = insured.addresses[insured.selectedAddressType];
+    return (
+      <View style={styles.insuredCard}>
+        <Text style={styles.eyebrow}>STEP 1 · APPLICATION LV V10</Text>
+        <Text style={styles.insuredPageTitle}>ข้อมูลผู้ขอเอาประกันภัย</Text>
+
+        <ApplicationSection title="ข้อมูลส่วนบุคคล" subtitle="ข้อมูลจากผู้มุ่งหวังและใบเสนอขายแสดงแบบอ่านอย่างเดียว">
+          <View style={styles.insuredGrid}>
+            <Field label="คำนำหน้า" editable={false} value={insured.prefix} />
+            <Field label="ชื่อ" editable={false} value={insured.firstName} />
+            <Field label="นามสกุล" editable={false} value={insured.lastName} />
+            <Field label="เพศ" editable={false} value={insured.gender} />
+            <Field label="วัน/เดือน/ปีเกิด" editable={false} value={insured.birthDate} />
+            <Field label="อายุ" editable={false} value={insured.age} />
+            <Field label="เอกสารยืนยันตัวตน" editable={false} value={insured.identityType} />
+            <Field label="เลขประจำตัวประชาชน" editable={false} value={insured.nationalId} />
+            <Field label="ส่วนสูง (ซม.) *" keyboardType="number-pad" value={insured.height} onChangeText={(height) => update("insured", { height: height.replace(/\D/g, "") })} />
+            <Field label="น้ำหนัก (กก.) *" keyboardType="number-pad" value={insured.weight} onChangeText={(weight) => update("insured", { weight: weight.replace(/\D/g, "") })} />
+            <Field label="สัญชาติ *" value={insured.nationality} onChangeText={(nationality) => update("insured", { nationality })} />
+            <Field label="เบอร์มือถือ *" maxLength={10} keyboardType="phone-pad" value={insured.mobile} onChangeText={(mobile) => update("insured", { mobile: mobile.replace(/\D/g, "") })} />
+            <Field label="อีเมล *" keyboardType="email-address" value={insured.email} onChangeText={(email) => update("insured", { email })} />
+          </View>
+        </ApplicationSection>
+
+        <ApplicationSection title="ประวัติชื่อและสถานภาพ">
+          <Text style={styles.fieldLabel}>เคยเปลี่ยนชื่อ–นามสกุลหรือไม่ *</Text>
+          <View style={styles.radioRow}>
+            {[["ไม่เคย", false], ["เคย", true]].map(([label, value]) => (
+              <Pressable key={label} style={styles.radioOption} onPress={() => update("insured", { hasFormerName: value })}>
+                <View style={[styles.radioCircle, insured.hasFormerName === value && styles.radioCircleSelected]}>
+                  {insured.hasFormerName === value && <View style={styles.radioDot} />}
+                </View>
+                <Text style={styles.radioLabel}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {insured.hasFormerName && (
+            <View style={styles.insuredGrid}>
+              <Field label="ชื่อเดิม *" value={insured.formerFirstName} onChangeText={(formerFirstName) => update("insured", { formerFirstName })} />
+              <Field label="นามสกุลเดิม *" value={insured.formerLastName} onChangeText={(formerLastName) => update("insured", { formerLastName })} />
+            </View>
+          )}
+          <Text style={styles.fieldLabel}>สถานภาพ *</Text>
+          <View style={styles.choiceRow}>
+            {["โสด", "สมรส", "หย่า", "หม้าย"].map((status) => (
+              <Pressable key={status} style={[styles.choiceButton, insured.maritalStatus === status && styles.choiceButtonActive]} onPress={() => update("insured", { maritalStatus: status })}>
+                <Text style={[styles.choiceButtonText, insured.maritalStatus === status && styles.choiceButtonTextActive]}>{status}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {insured.maritalStatus === "สมรส" && (
+            <View style={styles.insuredGrid}>
+              <Field label="คำนำหน้าคู่สมรส" value={insured.spousePrefix} onChangeText={(spousePrefix) => update("insured", { spousePrefix })} />
+              <Field label="ชื่อคู่สมรส" value={insured.spouseFirstName} onChangeText={(spouseFirstName) => update("insured", { spouseFirstName })} />
+              <Field label="นามสกุลคู่สมรส" value={insured.spouseLastName} onChangeText={(spouseLastName) => update("insured", { spouseLastName })} />
+            </View>
+          )}
+          <Text style={styles.fieldLabel}>รายละเอียดเพิ่มเติม *</Text>
+          <View style={styles.choiceRow}>
+            {["ไม่มี / สุขภาพแข็งแรง", "มี"].map((value) => (
+              <Pressable key={value} style={[styles.choiceButton, insured.additionalHealth === value && styles.choiceButtonActive]} onPress={() => update("insured", { additionalHealth: value })}>
+                <Text style={[styles.choiceButtonText, insured.additionalHealth === value && styles.choiceButtonTextActive]}>{value}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {insured.additionalHealth === "มี" && <Field label="กรุณาระบุ * (สูงสุด 90 ตัวอักษร)" maxLength={90} value={insured.additionalHealthDetail} onChangeText={(additionalHealthDetail) => update("insured", { additionalHealthDetail })} />}
+        </ApplicationSection>
+
+        <ApplicationSection title="ข้อมูลที่อยู่" subtitle="ต้องตรวจสอบให้ครบทั้งทะเบียนบ้าน ที่อยู่ปัจจุบัน ที่ทำงาน และสถานที่ติดต่อในประเทศไทย">
+          <View style={styles.addressTabs}>
+            {Object.keys(insured.addresses).map((type) => (
+              <Pressable key={type} style={[styles.addressTab, insured.selectedAddressType === type && styles.addressTabActive]} onPress={() => update("insured", { selectedAddressType: type })}>
+                <Text style={[styles.addressTabText, insured.selectedAddressType === type && styles.addressTabTextActive]}>{type}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.insuredGrid}>
+            <Field label="เลขที่ *" value={address.houseNo} onChangeText={(houseNo) => updateAddress({ houseNo })} />
+            <Field label="หมู่ที่" value={address.villageNo} onChangeText={(villageNo) => updateAddress({ villageNo })} />
+            <Field label="หมู่บ้าน" value={address.village} onChangeText={(village) => updateAddress({ village })} />
+            <Field label="อาคาร/คอนโด" value={address.building} onChangeText={(building) => updateAddress({ building })} />
+            <Field label="ชั้น" value={address.floor} onChangeText={(floor) => updateAddress({ floor })} />
+            <Field label="ห้อง" value={address.room} onChangeText={(room) => updateAddress({ room })} />
+            <Field label="ตรอก" value={address.alley} onChangeText={(alley) => updateAddress({ alley })} />
+            <Field label="ซอย" value={address.soi} onChangeText={(soi) => updateAddress({ soi })} />
+            <Field label="ถนน" value={address.road} onChangeText={(road) => updateAddress({ road })} />
+            <Field label="ตำบล/แขวง *" value={address.subdistrict} onChangeText={(subdistrict) => updateAddress({ subdistrict })} />
+            <Field label="อำเภอ/เขต *" value={address.district} onChangeText={(district) => updateAddress({ district })} />
+            <Field label="จังหวัด *" value={address.province} onChangeText={(province) => updateAddress({ province })} />
+            <Field label="รหัสไปรษณีย์ *" maxLength={5} keyboardType="number-pad" value={address.postalCode} onChangeText={(postalCode) => updateAddress({ postalCode: postalCode.replace(/\D/g, "") })} />
+            <Field label="เบอร์โทรศัพท์บ้าน" keyboardType="phone-pad" value={address.homePhone} onChangeText={(homePhone) => updateAddress({ homePhone: homePhone.replace(/\D/g, "") })} />
+          </View>
+        </ApplicationSection>
+
+        <ApplicationSection title="ข้อมูลรายได้และอาชีพ">
+          <View style={styles.insuredGrid}>
+            <Field label="อาชีพหลัก" editable={false} value={insured.occupation} />
+            <Field label="ลักษณะงานที่ทำ" editable={false} value={insured.jobDescription} />
+            <Field label="ตำแหน่ง" value={insured.position} onChangeText={(position) => update("insured", { position })} />
+            <Field label="รายได้ต่อปี (บาท) *" keyboardType="number-pad" value={insured.annualIncome} onChangeText={(annualIncome) => update("insured", { annualIncome: annualIncome.replace(/\D/g, "") })} />
+            <Field label="ลักษณะธุรกิจ" value={insured.businessType} onChangeText={(businessType) => update("insured", { businessType })} />
+          </View>
+        </ApplicationSection>
+
+        <View style={styles.requirementNote}>
+          <Text style={styles.requirementNoteText}>อ้างอิง BRD Application LV V10 หน้า 11–16 · เมื่อกดถัดไปต้องบันทึกอัตโนมัติ แสดง inline error และเลื่อนไปยังช่องบังคับแรกที่ไม่ครบ</Text>
+        </View>
+      </View>
+    );
   }
   if (index === 1) {
-    const beneficiary = application.beneficiaries[0];
-    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 2</Text><Text style={styles.sectionTitle}>ผู้รับประโยชน์</Text><View style={styles.formGrid}><Field label="ชื่อ–นามสกุล *" value={beneficiary.firstName} onChangeText={(firstName) => setApplication((current) => ({ ...current, beneficiaries: [{ ...current.beneficiaries[0], firstName }] }))} /><Field label="ความสัมพันธ์" value={beneficiary.relation} onChangeText={(relation) => setApplication((current) => ({ ...current, beneficiaries: [{ ...current.beneficiaries[0], relation }] }))} /><Field label="สัดส่วน (%) *" keyboardType="number-pad" value={String(beneficiary.share)} onChangeText={(share) => setApplication((current) => ({ ...current, beneficiaries: [{ ...current.beneficiaries[0], share: Number(share.replace(/\D/g, "")) }] }))} /></View><Text style={styles.leadMeta}>สัดส่วนผู้รับประโยชน์ทั้งหมดต้องรวมเท่ากับ 100%</Text></View>;
+    const payerGuardian = application.payerGuardian;
+    const payer = payerGuardian.payer;
+    const guardian = payerGuardian.guardian;
+    const updatePayer = (patch) => update("payerGuardian", { payer: { ...payer, ...patch } });
+    const updateGuardian = (patch) => update("payerGuardian", { guardian: { ...guardian, ...patch } });
+    return (
+      <View style={styles.insuredCard}>
+        <Text style={styles.eyebrow}>STEP 1.2 · แบบประกันและข้อมูลผู้ชำระเบี้ยประกัน</Text>
+        <Text style={styles.insuredPageTitle}>ผู้ชำระเบี้ยและผู้ปกครอง</Text>
+        <ApplicationSection title="แบบประกัน" subtitle="ข้อมูลจากใบเสนอขาย แสดงแบบอ่านอย่างเดียว">
+          <View style={styles.insuredGrid}>
+            <Field label="แบบประกัน" editable={false} value={payerGuardian.planName} />
+            <Field label="งวดชำระเบี้ย" editable={false} value={payerGuardian.premiumMode} />
+            <Field label="ทุนประกัน" editable={false} value={formatMoney(payerGuardian.sumAssured)} />
+            <Field label="เบี้ยประกันภัยครั้งแรก" editable={false} value={formatMoney(application.premium)} />
+          </View>
+        </ApplicationSection>
+        <ApplicationSection title="ข้อมูลผู้ชำระเบี้ยประกันภัย">
+          <View style={styles.insuredGrid}>
+            <Field label="ประเภทผู้ชำระเบี้ย *" value={payer.type} onChangeText={(type) => updatePayer({ type })} />
+            <Field label="ความสัมพันธ์ *" value={payer.relation} onChangeText={(relation) => updatePayer({ relation })} />
+            <Field label="คำนำหน้า *" value={payer.prefix} onChangeText={(prefix) => updatePayer({ prefix })} />
+            <Field label="ชื่อ *" value={payer.firstName} onChangeText={(firstName) => updatePayer({ firstName })} />
+            <Field label="นามสกุล *" value={payer.lastName} onChangeText={(lastName) => updatePayer({ lastName })} />
+            <Field label="วัน/เดือน/ปีเกิด *" value={payer.birthDate} onChangeText={(birthDate) => updatePayer({ birthDate, dopaStatus: "UNAVAILABLE" })} />
+            <Field label="เพศ *" value={payer.gender} onChangeText={(gender) => updatePayer({ gender })} />
+            <Field label="เลขประจำตัวประชาชน *" maxLength={13} keyboardType="number-pad" value={payer.nationalId} onChangeText={(nationalId) => updatePayer({ nationalId: nationalId.replace(/\D/g, ""), dopaStatus: "UNAVAILABLE" })} />
+            <Field label="เบอร์มือถือ *" maxLength={10} keyboardType="phone-pad" value={payer.mobile} onChangeText={(mobile) => updatePayer({ mobile: mobile.replace(/\D/g, "") })} />
+          </View>
+        </ApplicationSection>
+        {payerGuardian.guardianRequired && (
+          <ApplicationSection title="ผู้ปกครองหรือผู้แทนโดยชอบธรรม" subtitle="แสดงเมื่อผู้ขอเอาประกันอายุ 0–19 ปีและมีสถานภาพโสด">
+            <View style={styles.insuredGrid}>
+              <Field label="ความสัมพันธ์ *" value={guardian.relation} onChangeText={(relation) => updateGuardian({ relation })} />
+              <Field label="คำนำหน้า *" value={guardian.prefix} onChangeText={(prefix) => updateGuardian({ prefix })} />
+              <Field label="ชื่อ *" value={guardian.firstName} onChangeText={(firstName) => updateGuardian({ firstName })} />
+              <Field label="นามสกุล *" value={guardian.lastName} onChangeText={(lastName) => updateGuardian({ lastName })} />
+              <Field label="เพศ *" value={guardian.gender} onChangeText={(gender) => updateGuardian({ gender })} />
+              <Field label="เลขประจำตัวประชาชน *" maxLength={13} keyboardType="number-pad" value={guardian.nationalId} onChangeText={(nationalId) => updateGuardian({ nationalId: nationalId.replace(/\D/g, "") })} />
+              <Field label="วัน/เดือน/ปีเกิด *" value={guardian.birthDate} onChangeText={(birthDate) => updateGuardian({ birthDate })} />
+            </View>
+          </ApplicationSection>
+        )}
+        <View style={styles.requirementNote}>
+          <Text style={styles.requirementNoteText}>DOPA ตรวจวันเกิดและเลขบัตรของผู้ชำระเบี้ย/ผู้ปกครอง · ครั้งแรกแสดง popup · ครั้งที่ 2 bypass ไป Step 1.3 ผู้รับประโยชน์</Text>
+        </View>
+      </View>
+    );
   }
+
   if (index === 2) {
-    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 3</Text><Text style={styles.sectionTitle}>แบบสอบถามสุขภาพ</Text><Text style={styles.fieldLabel}>เคยมีโรคประจำตัวหรือเข้ารับการรักษาต่อเนื่องหรือไม่?</Text><View style={styles.segment}>{[["ไม่มี", false], ["มี", true]].map(([label, value]) => <Pressable key={label} style={[styles.segmentButton, application.health.answered && application.health.hasCondition === value && styles.segmentActive]} onPress={() => update("health", { answered: true, hasCondition: value })}><Text style={styles.segmentText}>{label}</Text></Pressable>)}</View>{application.health.hasCondition && <TextInput multiline style={styles.notesInput} placeholder="ระบุรายละเอียดสุขภาพเพิ่มเติม..." />}</View>;
+    const sumAssuredTotal = application.beneficiaries.reduce((sum, item) => sum + Number(item.sumAssuredShare || 0), 0);
+    const accountValueTotal = application.beneficiaries.reduce((sum, item) => sum + Number(item.accountValueShare || 0), 0);
+    return (
+      <View style={styles.beneficiaryPage}>
+        <View style={styles.applicationInfoCard}>
+          <Text style={styles.applicationSectionTitle}>ข้อมูลใบคำขอ</Text>
+          <Text style={styles.infoLabel}>เลขที่ใบคำขอ</Text>
+          <Text style={styles.infoValue}>00126569</Text>
+          <Text style={styles.infoLabel}>เลขที่อ้างอิงใบเสนอขาย</Text>
+          <Text style={styles.infoValue}>{application.quotationNo}</Text>
+          <Text style={styles.infoLabel}>การตรวจสุขภาพ</Text>
+          <Text style={styles.infoValue}>ไม่ต้องตรวจสุขภาพ</Text>
+          <View style={styles.infoDivider} />
+          <Text style={styles.infoLabel}>DOPA</Text>
+          <Text style={styles.infoWarningValue}>Bypass ครั้งที่ 2</Text>
+        </View>
+
+        <View style={styles.beneficiaryMain}>
+          <View style={styles.beneficiaryHeader}>
+            <View>
+              <Text style={styles.beneficiaryTitle}>ผู้รับประโยชน์</Text>
+              <Text style={styles.applicationSectionSubtitle}>เพิ่มผู้รับประโยชน์ได้สูงสุด 10 คน</Text>
+            </View>
+            <Pressable disabled={application.beneficiaries.length >= 10} style={[styles.addBeneficiaryButton, application.beneficiaries.length >= 10 && styles.buttonDisabled]} onPress={addBeneficiary}>
+              <Text style={styles.addBeneficiaryButtonText}>＋ เพิ่มผู้รับประโยชน์</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.beneficiaryInfoBanner}>
+            <Text style={styles.beneficiaryInfoText}>ⓘ กรณีมีผู้รับประโยชน์เป็นเจ้าหนี้ ผลประโยชน์จะได้รับตามจำนวนเงินคงเหลือหลังหักหนี้สิน</Text>
+          </View>
+
+          <View style={styles.shareSummary}>
+            <Text style={[styles.shareSummaryText, sumAssuredTotal !== 100 && styles.shareSummaryError]}>เงินเอาประกันภัยรวม {sumAssuredTotal}%</Text>
+            <Text style={[styles.shareSummaryText, accountValueTotal !== 100 && styles.shareSummaryError]}>มูลค่าบัญชีกรมธรรม์รวม {accountValueTotal}%</Text>
+          </View>
+
+          {application.beneficiaries.map((beneficiary, beneficiaryIndex) => (
+            <View key={beneficiaryIndex} style={styles.beneficiaryCard}>
+              <View style={styles.beneficiaryCardHeader}>
+                <Text style={styles.beneficiaryCardTitle}>ผู้รับประโยชน์คนที่ {beneficiaryIndex + 1}</Text>
+                {application.beneficiaries.length > 1 && <Pressable onPress={() => removeBeneficiary(beneficiaryIndex)}><Text style={styles.removeBeneficiaryText}>ลบรายการ</Text></Pressable>}
+              </View>
+              <Text style={styles.fieldLabel}>ประเภทผู้รับประโยชน์ *</Text>
+              <View style={styles.choiceRow}>
+                {["บุคคล", "นิติบุคคล / องค์กร"].map((type) => (
+                  <Pressable key={type} style={[styles.choiceButton, beneficiary.type === type && styles.choiceButtonActive]} onPress={() => updateBeneficiary(beneficiaryIndex, { type })}>
+                    <Text style={[styles.choiceButtonText, beneficiary.type === type && styles.choiceButtonTextActive]}>{type}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {beneficiary.type === "บุคคล" ? (
+                <View style={styles.insuredGrid}>
+                  <Field label="คำนำหน้า *" value={beneficiary.prefix} onChangeText={(prefix) => updateBeneficiary(beneficiaryIndex, { prefix })} />
+                  <Field label="ชื่อ *" value={beneficiary.firstName} onChangeText={(firstName) => updateBeneficiary(beneficiaryIndex, { firstName })} />
+                  <Field label="นามสกุล *" value={beneficiary.lastName} onChangeText={(lastName) => updateBeneficiary(beneficiaryIndex, { lastName })} />
+                  <Field label="เพศ *" value={beneficiary.gender} onChangeText={(gender) => updateBeneficiary(beneficiaryIndex, { gender })} />
+                  <Field label="วัน/เดือน/ปีเกิด *" value={beneficiary.birthDate} onChangeText={(birthDate) => updateBeneficiary(beneficiaryIndex, { birthDate })} />
+                  <Field label="อายุ *" keyboardType="number-pad" value={String(beneficiary.age)} onChangeText={(age) => updateBeneficiary(beneficiaryIndex, { age: age.replace(/\D/g, "") })} />
+                  <Field label="ความสัมพันธ์ *" value={beneficiary.relation} onChangeText={(relation) => updateBeneficiary(beneficiaryIndex, { relation })} />
+                  <Field label="เลขประจำตัวประชาชน" maxLength={13} keyboardType="number-pad" value={beneficiary.nationalId} onChangeText={(nationalId) => updateBeneficiary(beneficiaryIndex, { nationalId: nationalId.replace(/\D/g, "") })} />
+                </View>
+              ) : (
+                <View style={styles.insuredGrid}>
+                  <Field label="ชื่อผู้รับประโยชน์ *" value={beneficiary.firstName} onChangeText={(firstName) => updateBeneficiary(beneficiaryIndex, { firstName })} />
+                  <Field label="ความสัมพันธ์ *" value={beneficiary.relation} onChangeText={(relation) => updateBeneficiary(beneficiaryIndex, { relation })} />
+                  <Field label="เลขทะเบียนนิติบุคคล / องค์กร" maxLength={13} value={beneficiary.nationalId} onChangeText={(nationalId) => updateBeneficiary(beneficiaryIndex, { nationalId })} />
+                </View>
+              )}
+              <View style={styles.insuredGrid}>
+                <Field label="ผลประโยชน์ตามเงินเอาประกันภัย (%) *" keyboardType="number-pad" value={String(beneficiary.sumAssuredShare)} onChangeText={(value) => updateBeneficiary(beneficiaryIndex, { sumAssuredShare: Number(value.replace(/\D/g, "")) })} />
+                <Field label="ผลประโยชน์ตามมูลค่าบัญชี (%) *" keyboardType="number-pad" value={String(beneficiary.accountValueShare)} onChangeText={(value) => updateBeneficiary(beneficiaryIndex, { accountValueShare: Number(value.replace(/\D/g, "")) })} />
+                <Field label="ที่อยู่ผู้รับประโยชน์ *" value={beneficiary.addressType} onChangeText={(addressType) => updateBeneficiary(beneficiaryIndex, { addressType })} />
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    );
   }
   if (index === 3) {
-    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 4</Text><Text style={styles.sectionTitle}>เอกสารประกอบ</Text><DocumentToggle label="สำเนาบัตรประชาชน *" value={application.documents.identityCard} onPress={() => update("documents", { identityCard: !application.documents.identityCard })} /><DocumentToggle label="เอกสารยืนยันที่อยู่" value={application.documents.addressDocument} onPress={() => update("documents", { addressDocument: !application.documents.addressDocument })} /></View>;
+    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 3</Text><Text style={styles.sectionTitle}>แบบสอบถามสุขภาพ</Text><Text style={styles.fieldLabel}>เคยมีโรคประจำตัวหรือเข้ารับการรักษาต่อเนื่องหรือไม่?</Text><View style={styles.segment}>{[["ไม่มี", false], ["มี", true]].map(([label, value]) => <Pressable key={label} style={[styles.segmentButton, application.health.answered && application.health.hasCondition === value && styles.segmentActive]} onPress={() => update("health", { answered: true, hasCondition: value })}><Text style={styles.segmentText}>{label}</Text></Pressable>)}</View>{application.health.hasCondition && <TextInput multiline style={styles.notesInput} placeholder="ระบุรายละเอียดสุขภาพเพิ่มเติม..." />}</View>;
   }
   if (index === 4) {
-    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 5</Text><Text style={styles.sectionTitle}>ลงลายมือชื่อ</Text><SignatureBox label="ผู้เอาประกัน" value={application.signature.insured} onPress={() => update("signature", { insured: !application.signature.insured })} /><SignatureBox label="ตัวแทนประกันชีวิต" value={application.signature.agent} onPress={() => update("signature", { agent: !application.signature.agent })} /></View>;
+    return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 4</Text><Text style={styles.sectionTitle}>เอกสารประกอบ</Text><DocumentToggle label="สำเนาบัตรประชาชน *" value={application.documents.identityCard} onPress={() => update("documents", { identityCard: !application.documents.identityCard })} /><DocumentToggle label="เอกสารยืนยันที่อยู่" value={application.documents.addressDocument} onPress={() => update("documents", { addressDocument: !application.documents.addressDocument })} /></View>;
+  }
+  if (index === 5) {
+    const signature = application.signature;
+    return (
+      <View style={styles.signerCard}>
+        <Text style={styles.signerPageTitle}>ผู้ลงลายมือชื่อ</Text>
+        <View style={styles.signerMetaGrid}>
+          <SignerMeta label="วันที่" value="12 มิ.ย. 2568" />
+          <SignerMeta label="ชื่อพยาบาล/ผู้เขียน/ผู้พิมพ์" value="น.ส.ณิชาภา ยิ้มเก่งวิจิตรพร" />
+          <SignerMeta label="ชื่อผู้ขอเอาประกันภัย" value="นายธนาธิป รุ่งปัญญากิจพัฒน์" />
+          <SignerMeta label="ชื่อตัวแทน" value="น.ส.ณิชาภา ยิ้มเก่งวิจิตรพร" />
+          <SignerMeta label="ใบอนุญาตเลขที่" value="ว00000/2566" />
+        </View>
+
+        <Field
+          label="ทำใบคำขอที่ *"
+          maxLength={60}
+          value={signature.purpose}
+          onChangeText={(purpose) => update("signature", { purpose })}
+        />
+        <Text style={styles.characterCount}>{signature.purpose.length}/60</Text>
+
+        <View style={styles.signerDivider} />
+        <Text style={styles.signerSectionTitle}>ผู้ปกครองหรือผู้แทนโดยชอบธรรม</Text>
+        <View style={styles.signerGrid}>
+          <Field label="ความสัมพันธ์ *" value={signature.guardianRelation} onChangeText={(guardianRelation) => update("signature", { guardianRelation })} />
+          <View style={styles.flex}>
+            <Text style={styles.fieldLabel}>เพศ *</Text>
+            <View style={styles.radioRow}>
+              {["ชาย", "หญิง"].map((gender) => (
+                <Pressable key={gender} style={styles.radioOption} onPress={() => update("signature", { guardianGender: gender })}>
+                  <View style={[styles.radioCircle, signature.guardianGender === gender && styles.radioCircleSelected]}>
+                    {signature.guardianGender === gender && <View style={styles.radioDot} />}
+                  </View>
+                  <Text style={styles.radioLabel}>{gender}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <Field label="คำนำหน้า *" value={signature.guardianPrefix} onChangeText={(guardianPrefix) => update("signature", { guardianPrefix })} />
+          <Field label="ชื่อ *" value={signature.guardianFirstName} onChangeText={(guardianFirstName) => update("signature", { guardianFirstName })} />
+          <Field label="นามสกุล *" value={signature.guardianLastName} onChangeText={(guardianLastName) => update("signature", { guardianLastName })} />
+          <Field label="วัน/เดือน/ปี เกิด *" value={signature.guardianBirthDate} onChangeText={(guardianBirthDate) => update("signature", { guardianBirthDate })} />
+          <Field label="เอกสารแสดงตน *" value={signature.guardianDocumentType} onChangeText={(guardianDocumentType) => update("signature", { guardianDocumentType })} />
+          <Field label="เลขประจำตัวประชาชน *" keyboardType="number-pad" maxLength={13} value={signature.guardianNationalId} onChangeText={(guardianNationalId) => update("signature", { guardianNationalId: guardianNationalId.replace(/\D/g, "") })} />
+          <Field label="สัญชาติ" editable={false} value={signature.guardianNationality} />
+        </View>
+
+        <View style={styles.signerDivider} />
+        <Text style={styles.signerSectionTitle}>พยาน</Text>
+        <View style={styles.signerGrid}>
+          <Field label="คำนำหน้า *" value={signature.witnessPrefix} onChangeText={(witnessPrefix) => update("signature", { witnessPrefix })} />
+          <Field label="ชื่อ *" value={signature.witnessFirstName} onChangeText={(witnessFirstName) => update("signature", { witnessFirstName })} />
+          <Field label="นามสกุล *" value={signature.witnessLastName} onChangeText={(witnessLastName) => update("signature", { witnessLastName })} />
+        </View>
+
+        <View style={styles.signatureConfirmation}>
+          <SignatureBox label="ผู้เอาประกัน" value={signature.insured} onPress={() => update("signature", { insured: !signature.insured })} />
+          <SignatureBox label="ตัวแทนประกันชีวิต" value={signature.agent} onPress={() => update("signature", { agent: !signature.agent })} />
+        </View>
+      </View>
+    );
   }
   return <View style={styles.formCard}><Text style={styles.eyebrow}>STEP 6</Text><Text style={styles.sectionTitle}>ช่องทางชำระเงิน</Text><Text style={styles.subtitle}>เลือกช่องทางสำหรับชำระเบี้ยประกันครั้งแรก {formatMoney(application.premium)}</Text><View style={styles.paymentGrid}>{["QR", "Credit Card", "Direct Debit"].map((method) => <Pressable key={method} style={[styles.paymentMethod, application.payment.method === method && styles.paymentMethodActive]} onPress={() => update("payment", { method })}><Text style={styles.paymentIcon}>{method === "QR" ? "▦" : method === "Credit Card" ? "▭" : "⇄"}</Text><Text style={[styles.paymentText, application.payment.method === method && { color: "#087253" }]}>{method}</Text></Pressable>)}</View></View>;
 }
@@ -534,6 +1025,20 @@ function DocumentToggle({ label, value, onPress }) {
 
 function SignatureBox({ label, value, onPress }) {
   return <Pressable style={[styles.signatureBox, value && styles.signatureComplete]} onPress={onPress}><Text style={styles.leadMeta}>ลายมือชื่อ{label}</Text><Text style={styles.signatureMark}>{value ? `${label} ✓` : "แตะเพื่อลงลายมือชื่อ"}</Text></Pressable>;
+}
+
+function SignerMeta({ label, value }) {
+  return <View style={styles.signerMetaItem}><Text style={styles.signerMetaLabel}>{label} :</Text><Text style={styles.signerMetaValue}>{value}</Text></View>;
+}
+
+function ApplicationSection({ title, subtitle, children }) {
+  return (
+    <View style={styles.applicationSection}>
+      <Text style={styles.applicationSectionTitle}>{title}</Text>
+      {subtitle && <Text style={styles.applicationSectionSubtitle}>{subtitle}</Text>}
+      {children}
+    </View>
+  );
 }
 
 const careerSteps = [
@@ -831,6 +1336,67 @@ const styles = StyleSheet.create({
   modeTextActive: { color: "#087253" },
   notice: { backgroundColor: "#fff7df", borderColor: "#f0dfaa", borderWidth: 1, padding: 12, borderRadius: 10, marginBottom: 14 },
   noticeText: { color: "#735b14", fontSize: 13 },
+  dopaWarning: { flexDirection: "row", gap: 13, backgroundColor: "#fff8e7", borderColor: "#edc66d", borderWidth: 1, borderRadius: 10, padding: 16, marginBottom: 18 },
+  dopaWarningIcon: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#e79a14", alignItems: "center", justifyContent: "center" },
+  dopaWarningIconText: { color: "white", fontSize: 17, fontWeight: "900" },
+  dopaWarningHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" },
+  dopaWarningTitle: { color: "#65470e", fontSize: 15, fontWeight: "800" },
+  dopaWarningCode: { color: "#805f1e", backgroundColor: "#f6e4b8", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 4, fontSize: 10, fontWeight: "800" },
+  dopaWarningText: { color: "#654f25", fontSize: 13, lineHeight: 21, marginTop: 6 },
+  dopaPendingText: { color: "#8a6f39", fontSize: 10, marginTop: 7 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.58)", alignItems: "center", justifyContent: "center", padding: 20 },
+  dopaModal: { width: "100%", maxWidth: 490, backgroundColor: "white", borderRadius: 12, paddingHorizontal: 34, paddingTop: 35, paddingBottom: 28, alignItems: "center", shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 18, elevation: 12 },
+  dopaModalIcon: { width: 43, height: 43, borderRadius: 22, borderWidth: 3, borderColor: "#f6b900", alignItems: "center", justifyContent: "center" },
+  dopaModalIconText: { color: "#f6b900", fontSize: 25, fontWeight: "800", lineHeight: 28 },
+  dopaModalTitle: { color: "#373c40", fontSize: 25, fontWeight: "900", marginTop: 21, textAlign: "center" },
+  dopaModalMessage: { color: "#777f85", fontSize: 16, lineHeight: 25, textAlign: "center", marginTop: 17 },
+  dopaModalButton: { width: "100%", backgroundColor: "#0789cf", borderRadius: 7, paddingVertical: 15, alignItems: "center", marginTop: 27 },
+  dopaModalButtonText: { color: "white", fontSize: 17, fontWeight: "800" },
+  applicationToast: { alignSelf: "flex-end", backgroundColor: "#e8f7f0", borderColor: "#62bb94", borderWidth: 1, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 10, marginBottom: 12 },
+  applicationToastText: { color: "#087253", fontSize: 12, fontWeight: "800" },
+  saveOutlineButton: { paddingVertical: 13, paddingHorizontal: 22, borderColor: "#0789cf", borderWidth: 1, borderRadius: 8, backgroundColor: "white" },
+  saveOutlineButtonText: { color: "#0789cf", fontWeight: "800" },
+  applicationNextButton: { paddingVertical: 14, paddingHorizontal: 25, borderRadius: 8, backgroundColor: "#0789cf" },
+  applicationNextButtonText: { color: "white", fontWeight: "800" },
+  insuredCard: { backgroundColor: "#f2f4f6", borderColor: "#e0e5e8", borderWidth: 1, borderRadius: 6, padding: 24 },
+  insuredPageTitle: { color: "#343a3f", fontSize: 25, fontWeight: "800", marginTop: 4, marginBottom: 20 },
+  applicationSection: { backgroundColor: "white", borderColor: "#dde4e8", borderWidth: 1, borderRadius: 6, paddingHorizontal: 25, paddingVertical: 22, marginBottom: 18 },
+  applicationSectionTitle: { color: "#353b40", fontSize: 20, fontWeight: "800" },
+  applicationSectionSubtitle: { color: "#747d84", fontSize: 11, marginTop: 5, marginBottom: 8 },
+  insuredGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 2 },
+  choiceRow: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginBottom: 6 },
+  choiceButton: { minWidth: 86, borderWidth: 1, borderColor: "#cbd5db", borderRadius: 7, paddingVertical: 10, paddingHorizontal: 14, alignItems: "center", backgroundColor: "white" },
+  choiceButtonActive: { borderColor: "#0789cf", backgroundColor: "#eef8fe" },
+  choiceButtonText: { color: "#626d74", fontSize: 12, fontWeight: "700" },
+  choiceButtonTextActive: { color: "#087bb8" },
+  addressTabs: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 16, marginBottom: 5 },
+  addressTab: { borderBottomWidth: 2, borderBottomColor: "#d9e0e4", paddingHorizontal: 14, paddingVertical: 10 },
+  addressTabActive: { borderBottomColor: "#0789cf", backgroundColor: "#f1f9fd" },
+  addressTabText: { color: "#68747b", fontSize: 11, fontWeight: "700" },
+  addressTabTextActive: { color: "#087bb8" },
+  requirementNote: { backgroundColor: "#eaf5fb", borderLeftColor: "#0789cf", borderLeftWidth: 4, borderRadius: 5, padding: 13 },
+  requirementNoteText: { color: "#315e74", fontSize: 10, lineHeight: 17 },
+  beneficiaryPage: { flexDirection: "row", alignItems: "flex-start", gap: 16, flexWrap: "wrap" },
+  applicationInfoCard: { width: 230, minWidth: 210, backgroundColor: "white", borderColor: "#e0e6e9", borderWidth: 1, borderRadius: 7, padding: 20 },
+  infoLabel: { color: "#788188", fontSize: 10, marginTop: 16 },
+  infoValue: { color: "#41494e", fontSize: 13, fontWeight: "800", marginTop: 4 },
+  infoWarningValue: { color: "#9a6814", fontSize: 12, fontWeight: "800", marginTop: 4 },
+  infoDivider: { height: 1, backgroundColor: "#e7ebed", marginTop: 19 },
+  beneficiaryMain: { flex: 1, minWidth: 360, backgroundColor: "white", borderColor: "#e0e6e9", borderWidth: 1, borderRadius: 7, padding: 24 },
+  beneficiaryHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 15, flexWrap: "wrap" },
+  beneficiaryTitle: { color: "#373e43", fontSize: 22, fontWeight: "900" },
+  addBeneficiaryButton: { paddingVertical: 10, paddingHorizontal: 13, borderRadius: 7, borderColor: "#0789cf", borderWidth: 1, backgroundColor: "white" },
+  addBeneficiaryButtonText: { color: "#0789cf", fontSize: 12, fontWeight: "800" },
+  buttonDisabled: { opacity: 0.4 },
+  beneficiaryInfoBanner: { backgroundColor: "#e7f6fd", borderRadius: 5, padding: 12, marginTop: 17 },
+  beneficiaryInfoText: { color: "#3a6f87", fontSize: 10, lineHeight: 17 },
+  shareSummary: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 14 },
+  shareSummaryText: { color: "#087253", backgroundColor: "#e8f7f0", borderRadius: 12, paddingHorizontal: 11, paddingVertical: 6, fontSize: 10, fontWeight: "800" },
+  shareSummaryError: { color: "#a4493d", backgroundColor: "#fff0ec" },
+  beneficiaryCard: { borderColor: "#dfe5e8", borderWidth: 1, borderRadius: 7, padding: 19, marginTop: 16, backgroundColor: "#fcfdfd" },
+  beneficiaryCardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  beneficiaryCardTitle: { color: "#40484d", fontSize: 15, fontWeight: "800" },
+  removeBeneficiaryText: { color: "#c44d43", fontSize: 10, fontWeight: "800" },
   formCard: { backgroundColor: "white", borderColor: "#e1e7e4", borderWidth: 1, borderRadius: 15, padding: 22 },
   sectionTitle: { color: "#15372c", fontSize: 19, fontWeight: "800", marginBottom: 20 },
   formGrid: { flexDirection: "row", gap: 14, flexWrap: "wrap" },
@@ -915,7 +1481,7 @@ const styles = StyleSheet.create({
   topicCard: { minWidth: 190, flexGrow: 1, flexBasis: "30%", backgroundColor: "#f3f8f6", borderRadius: 12, padding: 16, borderWidth: 1, borderColor: "#e0e9e5" },
   topicNumber: { color: "#13a174", fontSize: 11, fontWeight: "900" },
   topicText: { color: "#25493d", fontSize: 13, fontWeight: "800", marginTop: 9 },
-  applicationContent: { padding: 30, maxWidth: 1300, width: "100%", alignSelf: "center" },
+  applicationContent: { paddingHorizontal: 30, paddingTop: 22, paddingBottom: 90, maxWidth: 1380, width: "100%", alignSelf: "center" },
   applicationHeaderRow: { flexDirection: "row", justifyContent: "space-between", padding: 14, backgroundColor: "#f7f9f8", borderBottomWidth: 1, borderBottomColor: "#e5eae8" },
   applicationHeaderText: { color: "#78867f", fontSize: 10, fontWeight: "800" },
   applicationRow: { flexDirection: "row", alignItems: "center", gap: 13, padding: 17, borderBottomWidth: 1, borderBottomColor: "#edf0ef" },
@@ -932,7 +1498,7 @@ const styles = StyleSheet.create({
   applicationStepCurrent: { backgroundColor: "#0b7658" },
   applicationStepNumber: { color: "#6f7e77", fontSize: 10, fontWeight: "900" },
   applicationLayout: { flexDirection: "row", alignItems: "flex-start", gap: 18, flexWrap: "wrap" },
-  applicationForm: { flex: 1.6, minWidth: 340 },
+  applicationForm: { flex: 1.9, minWidth: 340 },
   applicationSummary: { flex: 0.7, minWidth: 270, backgroundColor: "white", borderWidth: 1, borderColor: "#e1e7e4", borderRadius: 15, padding: 20 },
   readinessScore: { borderRadius: 13, backgroundColor: "#073b2e", padding: 18, marginBottom: 14 },
   readinessValue: { color: "#d7f15b", fontSize: 30, fontWeight: "900" },
@@ -950,6 +1516,35 @@ const styles = StyleSheet.create({
   signatureBox: { minHeight: 110, borderWidth: 1, borderStyle: "dashed", borderColor: "#bdcbc5", borderRadius: 11, padding: 14, marginBottom: 12, alignItems: "center", justifyContent: "center" },
   signatureComplete: { borderStyle: "solid", borderColor: "#5dbb99", backgroundColor: "#f1faf7" },
   signatureMark: { color: "#087253", fontSize: 16, fontWeight: "800", marginTop: 12 },
+  signerCard: {
+    backgroundColor: "white",
+    borderColor: "#e1e6ea",
+    borderWidth: 1,
+    borderRadius: 5,
+    paddingHorizontal: 38,
+    paddingVertical: 28,
+    shadowColor: "#5d6b76",
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  signerPageTitle: { color: "#353a3e", fontSize: 24, fontWeight: "800", marginBottom: 22 },
+  signerMetaGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 34, rowGap: 15, marginBottom: 15 },
+  signerMetaItem: { flexBasis: "46%", minWidth: 280, flexDirection: "row", gap: 14 },
+  signerMetaLabel: { color: "#5c6267", width: 175, fontSize: 13 },
+  signerMetaValue: { color: "#343a3f", flex: 1, fontSize: 13, fontWeight: "700" },
+  characterCount: { color: "#7d858b", fontSize: 11, textAlign: "right", marginTop: 6 },
+  signerDivider: { height: 1, backgroundColor: "#e5e9ec", marginVertical: 25 },
+  signerSectionTitle: { color: "#353a3e", fontSize: 21, fontWeight: "800", marginBottom: 4 },
+  signerGrid: { flexDirection: "row", flexWrap: "wrap", columnGap: 22, rowGap: 1 },
+  radioRow: { minHeight: 46, flexDirection: "row", alignItems: "center", gap: 24 },
+  radioOption: { flexDirection: "row", alignItems: "center", gap: 8 },
+  radioCircle: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: "#b9c5cc", alignItems: "center", justifyContent: "center" },
+  radioCircleSelected: { borderColor: "#0789cf", borderWidth: 2 },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#0789cf" },
+  radioLabel: { color: "#444b50", fontSize: 13 },
+  signatureConfirmation: { flexDirection: "row", flexWrap: "wrap", gap: 14, marginTop: 26 },
   paymentGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 20 },
   paymentMethod: { flexGrow: 1, minWidth: 135, borderWidth: 1, borderColor: "#d4ded9", borderRadius: 12, padding: 18, alignItems: "center" },
   paymentMethodActive: { borderColor: "#0b7658", backgroundColor: "#eff9f5" },

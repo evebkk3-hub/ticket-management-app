@@ -632,3 +632,34 @@ New durable conclusions:
 7. The project-doc corpus contains production-like customer and financial examples. Raw files
    and extracted samples must remain outside commits; Memory retains only sanitized findings
    and coverage metadata.
+
+## 16. RYP Incremental Requirement Register (2026-07-31)
+
+Detailed requirement register:
+
+- `docs/requirements/RYP_REQUIREMENTS.md`
+
+Latest captured workflow fragment:
+
+1. RYP includes attaching payment evidence and checking the payment result.
+2. The visible `ชำระสำเร็จ` decision routes success to connector B and non-success to connector C;
+   the connector destinations remain unconfirmed because the supplied screenshot is partial.
+3. Bank confirmation is a distinct visible activity and must be authoritative over uploaded
+   evidence or client-side success.
+4. Bank confirmation requires idempotency, correlation, guarded payment-state transitions,
+   audit evidence, retry/reconciliation handling, and protection from duplicate receipt/Core/GL
+   effects.
+5. The screenshot also references Generate E-TH, customer delivery by email, TASA Submission,
+   and NASA_SELLING_026, but their exact sequence must be confirmed before implementation.
+6. Product LV Top-up permits additional-premium payment through Direct Debit under the applicable
+   product conditions; the screenshot states that the Direct Debit steps must be performed again.
+7. After completed Direct Debit payment, Common displays the automatic-debit registration action
+   only for plans that support Recurring.
+8. CTF cannot use Recurring. This rule must be enforced by backend policy as well as UI
+   visibility.
+9. Successful automatic-debit registration triggers TL Smart notification template
+   `NASA_SELLING_026`. The success event must be confirmed, idempotent, and distinct from payment
+   completion or registration request submission.
+10. Direct Debit payment status, Recurring eligibility, Recurring registration status, and
+    notification delivery status are separate state dimensions and must not be represented by one
+    generic payment status.
